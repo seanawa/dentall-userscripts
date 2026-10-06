@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 就診列表 新掛號提醒
 // @namespace    htdayreportviewer
-// @version      1.1.0
+// @version      1.2.0
 // @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面中間下方跳出醒目的提醒方塊並播放提示音（列出序位、姓名、醫師、時間），該列標成黃色；點哪一位就只關掉那一位。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -185,19 +185,24 @@
   function beep() {
     const ctx = getAudio();
     if (!ctx) return;
+    // 三聲上行「叮咚咚」，連響兩次；VOLUME 0~1
+    const VOLUME = 0.9;
     const play = () => {
       const t0 = ctx.currentTime;
-      [[880, 0], [1175, 0.18], [1568, 0.36]].forEach(([freq, dt]) => {
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        g.gain.setValueAtTime(0.0001, t0 + dt);
-        g.gain.exponentialRampToValueAtTime(0.35, t0 + dt + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.5);
-        osc.connect(g).connect(ctx.destination);
-        osc.start(t0 + dt);
-        osc.stop(t0 + dt + 0.55);
+      [0, 1.0].forEach((rep) => {
+        [[880, 0], [1175, 0.18], [1568, 0.36]].forEach(([freq, dt]) => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          const t = t0 + rep + dt;
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(VOLUME, t + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+          osc.connect(g).connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.6);
+        });
       });
     };
     if (ctx.state === 'suspended') {
