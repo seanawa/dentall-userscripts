@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 就診列表 新掛號提醒
 // @namespace    htdayreportviewer
-// @version      1.5.1
+// @version      1.6.0
 // @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面中間下方跳出醒目的提醒方塊，並語音播報「○○醫師，○點○分預約病患抵達」（列出序位、姓名、醫師、時間），該列標成黃色；點哪一位就只關掉那一位。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -77,10 +77,12 @@
     const nameTd = tr.children[colIndex['姓名']];
     const h4 = nameTd && nameTd.querySelector('h4');
     const name = h4 ? h4.textContent.trim() : cell('姓名').replace(/^\d+\([^)]*\)/, '');
-    const timeOf = (s) => { const m = s.match(/\d{1,2}:\d{2}/); return m ? m[0] : s; };
+    const timeOf = (s) => { const m = s.match(/\d{1,2}:\d{2}/); return m ? m[0] : ''; }; // 空白或「-」視為沒有預約
+    const pid = (cell('姓名').match(/^\d{4,}/) || [''])[0]; // 病歷號
     return {
       key: tr.getAttribute('data-row-key'),
       seq: cell('序位'),
+      pid,
       name,
       regTime: timeOf(cell('掛號時間')),
       apptTime: timeOf(cell('預約時間')),
@@ -243,7 +245,7 @@
       const mm = parseInt(m[2], 10);
       return `${doc}${h}點${mm ? mm + '分' : ''}預約病患抵達`;
     }
-    return `${doc}現場掛號病患抵達`;
+    return `${doc}有臨時指定病患`;
   }
   function speak(rows) {
     if (!('speechSynthesis' in window)) return;
@@ -394,7 +396,7 @@
       const li = document.createElement('li');
       if (r.key) li.dataset.key = r.key;
       const meta = [];
-      if (r.apptTime) meta.push(`預約 ${r.apptTime}`);
+      if (r.apptTime) meta.push(`預約 ${r.apptTime}`); else meta.push('臨時指定');
       if (r.regTime) meta.push(`掛號 ${r.regTime}`);
       li.innerHTML =
         `<span class="dus-np-seq">${esc(r.seq || '—')}</span>` +
@@ -444,7 +446,16 @@
     saveAll(all);
 
     if (firstTimeToday) { console.log(TAG, `初次載入 ${dateKey}，記下 ${trs.length} 列`); return; }
-    const toAlert = fresh.filter((r) => !/已完成/.test(r.status));
+    // 預約時間空白的列：若同一位病患（病歷號）今天已有另一筆掛號 → 整筆忽略；否則當作「臨時指定病患」提醒
+    const allRows = trs.map((tr) => parseRow(tr, colIndex));
+    const toAlert = fresh.filter((r) => {
+      if (/已完成/.test(r.status)) return false;
+      if (!r.apptTime && r.pid && allRows.some((o) => o.pid === r.pid && o.key !== r.key)) {
+        console.log(TAG, '病患今天已有掛號，忽略', r.name);
+        return false;
+      }
+      return true;
+    });
     if (!toAlert.length) return;
     if (fresh.length > MAX_BURST) { console.log(TAG, `一次出現 ${fresh.length} 列，視為整批載入，不提醒`); return; }
     console.log(TAG, '新掛號', toAlert);
