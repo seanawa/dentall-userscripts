@@ -84,7 +84,7 @@
     .drv-loading{padding:40px;text-align:center;color:#666;}
     .drv-err{padding:20px;color:#c00;white-space:pre-wrap;}
     .drv-gen{margin:0 0 10px;}
-    .drv-gen button{width:100%;height:44px;border-radius:22px;border:1px solid #1677ff;background:#fff;color:#1677ff;font-size:15px;font-weight:600;cursor:pointer;}
+    .drv-gen button{width:100%;height:40px;border-radius:32px;border:1px solid #3266ff;background:#fff;color:#3266ff;font-size:14px;font-weight:600;cursor:pointer;}
     .drv-gen button:hover{background:#f0f6ff;}
     .drv-gen button:disabled{opacity:.6;cursor:default;}
     .drv-gen .drv-gen-status{margin:6px 0 0;font-size:13px;color:#666;text-align:center;min-height:18px;}
@@ -310,6 +310,8 @@
       btn.title = '自動按「匯出 EXCEL」，等報表製作完成後直接在頁面上開啟';
       const status = el('div', 'drv-gen-status');
       wrap.append(btn, status);
+      wrap.style.marginTop = 'auto';
+      exportBtn.style.marginTop = '10px';
       exportBtn.parentElement.insertBefore(wrap, exportBtn);
       btn.onclick = () => generateAndView(btn, status);
     }
@@ -336,15 +338,11 @@
           await sleep(1000);
           dlg = findDialog();
           if (!dlg) { setStatus(''); return; } // 使用者關掉對話框
-          if (/請選擇處置項目|請選擇醫師|請選擇日期/.test(dlg.textContent || '')) {
-            setStatus('請先選好必填欄位（例如處置項目），再按一次', true);
-            return;
-          }
           const cards = readCards(dlg);
           const top = cards[0];
           const isNew = cards.length > beforeCount || (top && top.time !== beforeTopTime);
           if (!isNew) {
-            if (Date.now() - started > 8000) { setStatus('沒有看到新的報表，請確認欄位都已選好', true); return; }
+            if (Date.now() - started > 8000) { setStatus('沒有產生新報表，請確認處置項目等欄位已選好後再按一次', true); return; }
             setStatus('等待報表建立…');
             continue;
           }
