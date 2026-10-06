@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Dentall 治療項目統計 線上瀏覽
 // @namespace    htdayreportviewer
-// @version      1.2.0
+// （@namespace 請勿更改：Tampermonkey 以 name+namespace 辨識腳本，改了會被當成另一支新腳本）
+// @version      1.2.1
 // @description  在 his.dentall.io 的「治療項目統計」按下「下載報表」時，直接在網頁上顯示統計與明細，不必開 Excel。
 // @match        https://his.dentall.io/*
-// @homepageURL  https://github.com/seanawa/htdayreportviewer
-// @supportURL   https://github.com/seanawa/htdayreportviewer/issues
-// @updateURL    https://raw.githubusercontent.com/seanawa/htdayreportviewer/main/dentall-treatment-report-viewer.user.js
-// @downloadURL  https://raw.githubusercontent.com/seanawa/htdayreportviewer/main/dentall-treatment-report-viewer.user.js
+// @homepageURL  https://github.com/seanawa/dentall-userscripts
+// @supportURL   https://github.com/seanawa/dentall-userscripts/issues
+// @updateURL    https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js
+// @downloadURL  https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js
 // @grant        none
 // @run-at       document-start
 // ==/UserScript==
@@ -19,10 +20,10 @@
  */
 (function loader() {
   'use strict';
-  const TAG = '[htdayreportviewer]';
+  const TAG = '[dentall-userscripts]';
 
   function pageCode() {
-    const TAG = '[htdayreportviewer]';
+    const TAG = '[dentall-userscripts]';
     const W = window;
     if (W.__dentallReportViewerInstalled) { console.log(TAG, '已安裝過，略過'); return; }
     W.__dentallReportViewerInstalled = true;

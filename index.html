@@ -97,7 +97,7 @@
     <div class="body">
       <h2>3. 安裝腳本</h2>
       <p>點下面按鈕，會跳出 Tampermonkey 的安裝畫面，按「安裝」。</p>
-      <a class="link" href="https://raw.githubusercontent.com/seanawa/htdayreportviewer/main/dentall-treatment-report-viewer.user.js" target="_blank" rel="noopener">安裝「Dentall 治療項目統計 線上瀏覽」</a>
+      <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js" target="_blank" rel="noopener">安裝「Dentall 治療項目統計 線上瀏覽」</a>
       <div class="note">如果點了只看到一整頁文字，沒有安裝畫面，代表步驟 1 或 2 沒完成。回去補做後再點一次。</div>
     </div>
   </div>
@@ -147,12 +147,12 @@
   <h3>所有連結一覽</h3>
   <div class="card links">
     <table>
-      <tr><td>這份清單</td><td><a href="https://seanawa.github.io/htdayreportviewer/">seanawa.github.io/htdayreportviewer</a></td></tr>
+      <tr><td>這份清單</td><td><a href="https://seanawa.github.io/dentall-userscripts/">seanawa.github.io/dentall-userscripts</a></td></tr>
       <tr><td>Tampermonkey 商店頁</td><td><a href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">chromewebstore.google.com/detail/tampermonkey/…</a></td></tr>
       <tr><td>Tampermonkey 設定頁（貼到網址列）</td><td><code>chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo</code></td></tr>
-      <tr><td>腳本安裝連結</td><td><a href="https://raw.githubusercontent.com/seanawa/htdayreportviewer/main/dentall-treatment-report-viewer.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/htdayreportviewer/main/dentall-treatment-report-viewer.user.js</a></td></tr>
+      <tr><td>腳本安裝連結</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js</a></td></tr>
       <tr><td>Dentall HIS</td><td><a href="https://his.dentall.io/htdc/" target="_blank" rel="noopener">his.dentall.io/htdc</a></td></tr>
-      <tr><td>程式碼與說明（GitHub）</td><td><a href="https://github.com/seanawa/htdayreportviewer" target="_blank" rel="noopener">github.com/seanawa/htdayreportviewer</a></td></tr>
+      <tr><td>程式碼與說明（GitHub）</td><td><a href="https://github.com/seanawa/dentall-userscripts" target="_blank" rel="noopener">github.com/seanawa/dentall-userscripts</a></td></tr>
     </table>
   </div>
 
@@ -170,7 +170,7 @@
 
 <script>
 (function(){
-  var KEY='htdayreportviewer-install-steps';
+  var KEY='dentall-userscripts-install-steps';
   var steps=[].slice.call(document.querySelectorAll('.step'));
   var state={};
   try{ state=JSON.parse(localStorage.getItem(KEY)||'{}')||{}; }catch(e){ state={}; }
