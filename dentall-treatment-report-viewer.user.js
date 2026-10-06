@@ -312,6 +312,8 @@
       if (document.querySelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')) return;
       autoSelBusy = true;
       try {
+        await sleep(500); // 等對話框開啟動畫結束
+        if (!dlg.isConnected || input.value.trim() !== '' || document.activeElement === input) return;
         const selector = sel.querySelector('.ant-select-selector') || sel;
         input.focus();
         selector.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
@@ -329,6 +331,8 @@
           autoSelFails++;
         }
         input.blur();
+        // 若下拉仍開著，模擬點擊外部把它收起
+        document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
       } catch (e) {
         autoSelFails++;
         console.warn(TAG, '自動選取失敗', e);
