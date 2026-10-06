@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 就診列表 新掛號提醒
 // @namespace    htdayreportviewer
-// @version      1.6.0
+// @version      1.6.1
 // @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面中間下方跳出醒目的提醒方塊，並語音播報「○○醫師，○點○分預約病患抵達」（列出序位、姓名、醫師、時間），該列標成黃色；點哪一位就只關掉那一位。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -19,7 +19,7 @@
  *   2. 表格一有變化就比對，出現沒看過、而且門診處置不是「已完成」的列 → 顯示提醒方塊並把該列標黃。
  *   3. 第一次看到某一天的列表時只默默記下來，不提醒（避免一開畫面就跳一整排）。
  *      一次冒出超過 MAX_BURST 列也視為「整批載入」而不提醒（例如切換篩選）。
- *   4. 提醒方塊固定在畫面中間下方，先一聲短「叮」再語音播報「○○醫師，○點○分預約病患抵達」（右下角「🔔 掛號提醒聲音」可關閉、選聲音、調語速音量，設定存在這台電腦）；點某一位只關掉那一位，右上角 ✕ 全部關掉；期間再有新病患會累加在同一個方塊裡。
+ *   4. 提醒方塊固定在畫面中間下方，先一聲短「叮」再語音播報「○○醫師，○點○分預約病患抵達」（左下角「🔔 掛號提醒聲音」可關閉、選聲音、調語速音量，設定存在這台電腦）；點某一位只關掉那一位，右上角 ✕ 全部關掉；期間再有新病患會累加在同一個方塊裡。
  * 不碰任何資料、不呼叫 API。
  */
 (function () {
@@ -290,7 +290,7 @@
     st.id = STYLE_ID + '-set';
     st.textContent = `
       #${SET_BTN_ID} {
-        position: fixed; right: 16px; bottom: 16px; z-index: 2147482000;
+        position: fixed; left: 16px; bottom: 16px; z-index: 2147482000;
         background: #fff; border: 1px solid #d9d9d9; border-radius: 999px; padding: 6px 12px;
         font-size: 13px; color: #595959; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.12);
         font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
@@ -298,7 +298,7 @@
       #${SET_BTN_ID}:hover { color: #fa541c; border-color: #fa541c; }
       #${SET_BTN_ID}.dus-muted { color: #bfbfbf; }
       #${SET_PANEL_ID} {
-        position: fixed; right: 16px; bottom: 56px; z-index: 2147482001; width: 320px;
+        position: fixed; left: 16px; bottom: 56px; z-index: 2147482001; width: 320px;
         background: #fff; border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px 16px;
         box-shadow: 0 8px 24px rgba(0,0,0,.18); font-size: 14px; color: #262626;
         font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
