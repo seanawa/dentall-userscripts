@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 就診列表 新掛號提醒
 // @namespace    htdayreportviewer
-// @version      1.2.0
+// @version      1.2.1
 // @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面中間下方跳出醒目的提醒方塊並播放提示音（列出序位、姓名、醫師、時間），該列標成黃色；點哪一位就只關掉那一位。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -205,16 +205,19 @@
         });
       });
     };
-    if (ctx.state === 'suspended') {
-      // 瀏覽器要等使用者在頁面上有過任何互動才允許出聲
-      ctx.resume().then(play).catch(() => {});
-    } else {
-      play();
-    }
+    if (ctx.state === 'running') { play(); return; }
+    // 瀏覽器規定頁面要先被點過／按過鍵才允許出聲：先記下來，等使用者一有動作就補響
+    pendingBeep = true;
+    ctx.resume().then(() => { if (ctx.state === 'running' && pendingBeep) { pendingBeep = false; play(); } }).catch(() => {});
   }
-  // 使用者一有互動就先把音訊喚醒，之後的提示音才能即時播放
+  let pendingBeep = false;
   ['pointerdown', 'keydown'].forEach((ev) =>
-    document.addEventListener(ev, () => { const c = getAudio(); if (c && c.state === 'suspended') c.resume().catch(() => {}); }, { capture: true, passive: true }));
+    document.addEventListener(ev, () => {
+      const c = getAudio();
+      if (!c) return;
+      const after = () => { if (pendingBeep && document.getElementById(BOX_ID)) { pendingBeep = false; beep(); } else { pendingBeep = false; } };
+      if (c.state === 'suspended') c.resume().then(after).catch(() => {}); else after();
+    }, { capture: true, passive: true }));
 
   function notify(rows) {
     ensureStyle();
