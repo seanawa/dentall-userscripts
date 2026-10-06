@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dentall 腳本 安裝清單</title>
+<meta name="description" content="泓泰牙醫診所公用電腦：安裝「治療項目統計 線上瀏覽」腳本的逐步檢查清單">
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --text:#1f2328; --muted:#656d76; --line:#d0d7de;
+    --accent:#0969da; --accent-bg:#ddf4ff; --ok:#1a7f37; --ok-bg:#dafbe1; --warn:#9a6700; --warn-bg:#fff8c5; --code:#eff1f3;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#8d96a0; --line:#30363d;
+      --accent:#58a6ff; --accent-bg:#121d2f; --ok:#3fb950; --ok-bg:#12261e; --warn:#d29922; --warn-bg:#272115; --code:#21262d;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1117; --card:#161b22; --text:#e6edf3; --muted:#8d96a0; --line:#30363d;
+    --accent:#58a6ff; --accent-bg:#121d2f; --ok:#3fb950; --ok-bg:#12261e; --warn:#d29922; --warn-bg:#272115; --code:#21262d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;}
+  .wrap{max-width:820px;margin:0 auto;padding:24px 16px 64px;}
+  h1{font-size:26px;margin:0 0 4px;}
+  .sub{color:var(--muted);margin:0 0 20px;}
+  .progress{display:flex;align-items:center;gap:12px;margin:0 0 20px;}
+  .bar{flex:1;height:10px;background:var(--line);border-radius:6px;overflow:hidden;}
+  .bar>i{display:block;height:100%;width:0;background:var(--ok);transition:width .3s;}
+  .progress b{font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 18px 16px;margin:0 0 14px;}
+  .step{display:flex;gap:14px;align-items:flex-start;}
+  .step input[type=checkbox]{width:26px;height:26px;margin:4px 0 0;flex:none;accent-color:var(--ok);cursor:pointer;}
+  .step .body{flex:1;min-width:0;}
+  .step h2{font-size:18px;margin:0 0 6px;}
+  .step.done h2{text-decoration:line-through;color:var(--muted);}
+  .step p{margin:6px 0;}
+  ol.sub-steps{margin:8px 0 0;padding-left:22px;}
+  ol.sub-steps li{margin:4px 0;}
+  .link{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;text-decoration:none;font-weight:600;padding:10px 16px;border-radius:8px;margin:8px 8px 4px 0;}
+  .link:hover{filter:brightness(1.1);}
+  .copybox{display:flex;gap:8px;align-items:stretch;margin:8px 0 4px;flex-wrap:wrap;}
+  .copybox code{flex:1;min-width:0;background:var(--code);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px;overflow-x:auto;white-space:nowrap;}
+  .copybox button{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:8px;padding:0 14px;font-size:14px;cursor:pointer;white-space:nowrap;}
+  .copybox button:hover{border-color:var(--accent);color:var(--accent);}
+  .copybox button.copied{border-color:var(--ok);color:var(--ok);}
+  .note{background:var(--warn-bg);border-left:4px solid var(--warn);padding:8px 12px;border-radius:6px;margin:8px 0 0;font-size:15px;}
+  .ok{background:var(--ok-bg);border-left:4px solid var(--ok);padding:8px 12px;border-radius:6px;margin:8px 0 0;font-size:15px;}
+  .tip{color:var(--muted);font-size:14px;}
+  h3{font-size:17px;margin:28px 0 10px;}
+  table{width:100%;border-collapse:collapse;font-size:15px;}
+  td{padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top;}
+  td:first-child{white-space:nowrap;font-weight:600;width:38%;}
+  .links a{color:var(--accent);word-break:break-all;}
+  .reset{background:none;border:none;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:14px;padding:0;}
+  kbd{background:var(--code);border:1px solid var(--line);border-radius:4px;padding:0 6px;font-size:13px;}
+  @media print{ .link,.copybox button,.reset,.progress{display:none} .card{break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Dentall 腳本 安裝清單</h1>
+  <p class="sub">泓泰牙醫診所公用電腦用。照順序打勾，六步完成。進度只存在這台電腦的瀏覽器裡。</p>
+
+  <div class="progress"><div class="bar"><i id="bar"></i></div><b id="prog">0 / 6</b></div>
+
+  <div class="card step" data-step="1">
+    <input type="checkbox" aria-label="步驟 1 完成">
+    <div class="body">
+      <h2>1. 安裝 Tampermonkey 擴充功能</h2>
+      <p>用 Chrome 打開下面連結，按「加到 Chrome」→「新增擴充功能」。</p>
+      <a class="link" href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">開啟 Chrome 線上應用程式商店</a>
+      <p class="tip">裝好後，Chrome 右上角拼圖圖示裡會多一個黑底方塊的 Tampermonkey。建議點拼圖旁的「釘選」把它固定在工具列。</p>
+    </div>
+  </div>
+
+  <div class="card step" data-step="2">
+    <input type="checkbox" aria-label="步驟 2 完成">
+    <div class="body">
+      <h2>2. 開啟「允許使用者指令碼」</h2>
+      <p>新版 Chrome 沒開這個，腳本就算裝了也不會執行。這個設定頁無法用點的，請複製後貼到網址列：</p>
+      <div class="copybox">
+        <code id="ext-url">chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo</code>
+        <button data-copy="#ext-url">複製</button>
+      </div>
+      <ol class="sub-steps">
+        <li>在 Chrome 網址列貼上，按 <kbd>Enter</kbd>，會打開 Tampermonkey 的詳細資料頁。</li>
+        <li>往下找到「<b>允許使用者指令碼</b>」(Allow User Scripts)，把右邊開關點成藍色。</li>
+      </ol>
+      <div class="note">舊版 Chrome 若找不到這個選項，改到 <code>chrome://extensions</code> 右上角把「開發人員模式」打開。</div>
+    </div>
+  </div>
+
+  <div class="card step" data-step="3">
+    <input type="checkbox" aria-label="步驟 3 完成">
+    <div class="body">
+      <h2>3. 安裝腳本</h2>
+      <p>點下面按鈕，會跳出 Tampermonkey 的安裝畫面，按「安裝」。</p>
+      <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js" target="_blank" rel="noopener">安裝「Dentall 治療項目統計 線上瀏覽」</a>
+      <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js" target="_blank" rel="noopener">安裝「Dentall 就診列表 記住排序」</a>
+      <p>兩支都裝；每一支都會各自跳出安裝畫面，各按一次「安裝」。</p>
+      <div class="note">如果點了只看到一整頁文字，沒有安裝畫面，代表步驟 1 或 2 沒完成。回去補做後再點一次。</div>
+    </div>
+  </div>
+
+  <div class="card step" data-step="4">
+    <input type="checkbox" aria-label="步驟 4 完成">
+    <div class="body">
+      <h2>4. 完全關閉 Chrome，再重新打開</h2>
+      <p>讓剛才的設定和腳本確實生效。</p>
+      <ol class="sub-steps">
+        <li>關掉所有 Chrome 視窗。Windows 請再看一下右下角工作列的隱藏圖示，若還有 Chrome 圖示，右鍵 →「結束」。Mac 請按 <kbd>Cmd</kbd>+<kbd>Q</kbd>。</li>
+        <li>重新打開 Chrome。</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="card step" data-step="5">
+    <input type="checkbox" aria-label="步驟 5 完成">
+    <div class="body">
+      <h2>5. 登入 Dentall 並確認腳本有在跑</h2>
+      <a class="link" href="https://his.dentall.io/htdc/" target="_blank" rel="noopener">開啟 Dentall HIS</a>
+      <p>登入後，在 Dentall 頁面點工具列的 Tampermonkey 圖示，應該看到：</p>
+      <ol class="sub-steps">
+        <li>圖示右下角有數字 <b>1</b>。</li>
+        <li>清單裡有「Dentall 治療項目統計 線上瀏覽」，開關是綠色。</li>
+        <li>彈窗最上方<b>沒有</b>藍色橫幅寫「請啟用『允許使用者腳本』」。有的話回步驟 2。</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="card step" data-step="6">
+    <input type="checkbox" aria-label="步驟 6 完成">
+    <div class="body">
+      <h2>6. 實際測試一次</h2>
+      <ol class="sub-steps">
+        <li>Dentall 上方選單「分析報表」→「治療項目統計」。</li>
+        <li>日期選昨天，處置項目選「全部代碼」，按「匯出 EXCEL」。</li>
+        <li>右側出現新的一筆，等「製作中」變成「下載報表」後點它。</li>
+      </ol>
+      <div class="ok">成功：畫面直接跳出統計表，有「統計（項目 × 醫師）」「統計（醫師 × 項目）」「明細」三個分頁，沒有下載任何檔案。</div>
+      <div class="note">失敗：還是下載了 Excel。先按 <kbd>F5</kbd> 重新整理 Dentall 頁面再試一次，仍不行就回到步驟 5 檢查。</div>
+    </div>
+  </div>
+
+  <p><button class="reset" id="reset">清除這台電腦的打勾進度</button></p>
+
+  <h3>所有連結一覽</h3>
+  <div class="card links">
+    <table>
+      <tr><td>這份清單</td><td><a href="https://seanawa.github.io/dentall-userscripts/">seanawa.github.io/dentall-userscripts</a></td></tr>
+      <tr><td>Tampermonkey 商店頁</td><td><a href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">chromewebstore.google.com/detail/tampermonkey/…</a></td></tr>
+      <tr><td>Tampermonkey 設定頁（貼到網址列）</td><td><code>chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo</code></td></tr>
+      <tr><td>安裝：治療項目統計 線上瀏覽</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js</a></td></tr>
+      <tr><td>安裝：就診列表 記住排序</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js</a></td></tr>
+      <tr><td>Dentall HIS</td><td><a href="https://his.dentall.io/htdc/" target="_blank" rel="noopener">his.dentall.io/htdc</a></td></tr>
+      <tr><td>程式碼與說明（GitHub）</td><td><a href="https://github.com/seanawa/dentall-userscripts" target="_blank" rel="noopener">github.com/seanawa/dentall-userscripts</a></td></tr>
+    </table>
+  </div>
+
+  <h3>常見問題</h3>
+  <div class="card">
+    <table>
+      <tr><td>點安裝連結只看到文字</td><td>Tampermonkey 沒裝，或步驟 2 的開關沒開。</td></tr>
+      <tr><td>Tampermonkey 圖示沒有數字 1</td><td>不在 Dentall 頁面、腳本開關被關掉、或步驟 2 沒開。</td></tr>
+      <tr><td>有藍色橫幅「請啟用允許使用者腳本」</td><td>步驟 2 沒開。開完要重新整理 Dentall 頁面。</td></tr>
+      <tr><td>想要 Excel 檔</td><td>報表視窗右上角有「下載 Excel」按鈕，功能和原本一樣。</td></tr>
+      <tr><td>腳本以後怎麼更新</td><td>不用動。Tampermonkey 每天會自動檢查 GitHub 上的新版。</td></tr>
+    </table>
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEY='dentall-userscripts-install-steps';
+  var steps=[].slice.call(document.querySelectorAll('.step'));
+  var state={};
+  try{ state=JSON.parse(localStorage.getItem(KEY)||'{}')||{}; }catch(e){ state={}; }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+  function render(){
+    var done=0;
+    steps.forEach(function(s){
+      var n=s.getAttribute('data-step'); var cb=s.querySelector('input');
+      cb.checked=!!state[n]; s.classList.toggle('done', !!state[n]); if(state[n]) done++;
+    });
+    document.getElementById('prog').textContent=done+' / '+steps.length;
+    document.getElementById('bar').style.width=(done/steps.length*100)+'%';
+  }
+  steps.forEach(function(s){
+    s.querySelector('input').addEventListener('change', function(){ state[s.getAttribute('data-step')]=this.checked; save(); render(); });
+  });
+  document.getElementById('reset').addEventListener('click', function(){ state={}; save(); render(); });
+  document.querySelectorAll('[data-copy]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var text=document.querySelector(btn.getAttribute('data-copy')).textContent.trim();
+      function ok(){ btn.textContent='已複製'; btn.classList.add('copied'); setTimeout(function(){ btn.textContent='複製'; btn.classList.remove('copied'); },1500); }
+      if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(ok, fallback); } else { fallback(); }
+      function fallback(){ var r=document.createRange(); r.selectNodeContents(document.querySelector(btn.getAttribute('data-copy'))); var sel=getSelection(); sel.removeAllRanges(); sel.addRange(r); try{ document.execCommand('copy'); ok(); }catch(e){} }
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>

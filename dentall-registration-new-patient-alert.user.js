@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Dentall 就診列表 新掛號提醒
 // @namespace    htdayreportviewer
-// @version      1.0.0
-// @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面上方跳出醒目的提醒方塊（列出序位、姓名、醫師、時間），並把該列標成黃色；點一下方塊才會消失。
+// @version      1.1.0
+// @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面中間下方跳出醒目的提醒方塊並播放提示音（列出序位、姓名、醫師、時間），該列標成黃色；點哪一位就只關掉那一位。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
 // @supportURL   https://github.com/seanawa/dentall-userscripts/issues
@@ -19,7 +19,7 @@
  *   2. 表格一有變化就比對，出現沒看過、而且門診處置不是「已完成」的列 → 顯示提醒方塊並把該列標黃。
  *   3. 第一次看到某一天的列表時只默默記下來，不提醒（避免一開畫面就跳一整排）。
  *      一次冒出超過 MAX_BURST 列也視為「整批載入」而不提醒（例如切換篩選）。
- *   4. 提醒方塊固定在畫面上方，點一下（或按右上角 ✕）才消失；期間再有新病患會累加在同一個方塊裡。
+ *   4. 提醒方塊固定在畫面中間下方並播放提示音；點某一位只關掉那一位，右上角 ✕ 全部關掉；期間再有新病患會累加在同一個方塊裡。
  * 不碰任何資料、不呼叫 API。
  */
 (function () {
@@ -96,12 +96,12 @@
     st.id = STYLE_ID;
     st.textContent = `
       #${BOX_ID} {
-        position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
         z-index: 2147483000; min-width: 420px; max-width: 80vw;
         background: #fff7e6; border: 3px solid #fa541c; border-radius: 12px;
         box-shadow: 0 8px 30px rgba(250,84,28,.45);
         font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
-        color: #262626; cursor: pointer; user-select: none;
+        color: #262626; user-select: none;
         animation: dus-np-pulse 1.2s ease-in-out infinite;
       }
       @keyframes dus-np-pulse {
@@ -114,14 +114,19 @@
         padding: 10px 16px; border-radius: 8px 8px 0 0;
       }
       #${BOX_ID} .dus-np-close {
-        font-size: 18px; font-weight: 400; opacity: .9; margin-left: 24px;
+        font-size: 18px; font-weight: 400; opacity: .9; margin-left: 24px; cursor: pointer;
+        padding: 0 6px; border-radius: 6px;
       }
+      #${BOX_ID} .dus-np-close:hover { background: rgba(255,255,255,.25); }
       #${BOX_ID} ul { list-style: none; margin: 0; padding: 8px 16px 10px; }
       #${BOX_ID} li {
         font-size: 18px; line-height: 1.5; padding: 6px 0; border-top: 1px dashed #ffbb96;
         display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap;
+        cursor: pointer; border-radius: 6px; margin: 0 -8px; padding-left: 8px; padding-right: 8px;
       }
+      #${BOX_ID} li:hover { background: #ffe7ba; }
       #${BOX_ID} li:first-child { border-top: 0; }
+      #${BOX_ID} .dus-np-ok { margin-left: auto; color: #8c8c8c; font-size: 14px; }
       #${BOX_ID} .dus-np-seq {
         background: #fa541c; color: #fff; border-radius: 6px; padding: 0 8px;
         font-weight: 700; min-width: 2.2em; text-align: center;
@@ -144,12 +149,67 @@
     st.textContent = `${sel} { background: #fff566 !important; }`;
   }
 
-  function dismiss() {
+  function dismissAll() {
     const box = document.getElementById(BOX_ID);
     if (box) box.remove();
     highlighted.clear();
     applyHighlight();
   }
+
+  function dismissOne(li) {
+    const box = document.getElementById(BOX_ID);
+    const key = li.dataset.key;
+    li.remove();
+    if (key) highlighted.delete(key);
+    applyHighlight();
+    const ul = box && box.querySelector('ul');
+    if (!ul || !ul.children.length) { dismissAll(); return; }
+    updateCount(box);
+  }
+
+  function updateCount(box) {
+    const n = box.querySelector('ul').children.length;
+    box.querySelector('.dus-np-head > span').textContent = `🔔 新掛號病患（${n}）`;
+  }
+
+  // ---------- 提示音（WebAudio，不需要音檔）----------
+  let audioCtx = null;
+  function getAudio() {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      audioCtx = new AC();
+    }
+    return audioCtx;
+  }
+  function beep() {
+    const ctx = getAudio();
+    if (!ctx) return;
+    const play = () => {
+      const t0 = ctx.currentTime;
+      [[880, 0], [1175, 0.18], [1568, 0.36]].forEach(([freq, dt]) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, t0 + dt);
+        g.gain.exponentialRampToValueAtTime(0.35, t0 + dt + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.5);
+        osc.connect(g).connect(ctx.destination);
+        osc.start(t0 + dt);
+        osc.stop(t0 + dt + 0.55);
+      });
+    };
+    if (ctx.state === 'suspended') {
+      // 瀏覽器要等使用者在頁面上有過任何互動才允許出聲
+      ctx.resume().then(play).catch(() => {});
+    } else {
+      play();
+    }
+  }
+  // 使用者一有互動就先把音訊喚醒，之後的提示音才能即時播放
+  ['pointerdown', 'keydown'].forEach((ev) =>
+    document.addEventListener(ev, () => { const c = getAudio(); if (c && c.state === 'suspended') c.resume().catch(() => {}); }, { capture: true, passive: true }));
 
   function notify(rows) {
     ensureStyle();
@@ -158,14 +218,19 @@
       box = document.createElement('div');
       box.id = BOX_ID;
       box.innerHTML =
-        `<div class="dus-np-head"><span>🔔 新掛號病患</span><span class="dus-np-close">✕</span></div>` +
-        `<ul></ul><div class="dus-np-foot">點一下關閉</div>`;
-      box.addEventListener('click', dismiss);
+        `<div class="dus-np-head"><span>🔔 新掛號病患</span><span class="dus-np-close" title="全部關閉">✕</span></div>` +
+        `<ul></ul><div class="dus-np-foot">點病患關閉該筆，點 ✕ 全部關閉</div>`;
+      box.addEventListener('click', (ev) => {
+        if (ev.target.closest('.dus-np-close')) { dismissAll(); return; }
+        const li = ev.target.closest('li');
+        if (li) dismissOne(li);
+      });
       document.body.appendChild(box);
     }
     const ul = box.querySelector('ul');
     for (const r of rows) {
       const li = document.createElement('li');
+      if (r.key) li.dataset.key = r.key;
       const meta = [];
       if (r.doctor) meta.push(`醫師 ${r.doctor}`);
       if (r.apptTime) meta.push(`預約 ${r.apptTime}`);
@@ -173,13 +238,14 @@
       li.innerHTML =
         `<span class="dus-np-seq">${esc(r.seq || '—')}</span>` +
         `<span class="dus-np-name">${esc(r.name)}</span>` +
-        `<span class="dus-np-meta">${esc(meta.join('　'))}</span>`;
+        `<span class="dus-np-meta">${esc(meta.join('　'))}</span>` +
+        `<span class="dus-np-ok">✓</span>`;
       ul.appendChild(li);
       if (r.key) highlighted.add(r.key);
     }
-    const n = ul.children.length;
-    box.querySelector('.dus-np-head > span').textContent = `🔔 新掛號病患（${n}）`;
+    updateCount(box);
     applyHighlight();
+    beep();
   }
 
   function esc(s) {
