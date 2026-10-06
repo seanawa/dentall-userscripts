@@ -309,7 +309,7 @@
       const input = sel && sel.querySelector('input');
       if (!input || input.value.trim() !== '') return;
       if (document.activeElement === input) return;
-      if (document.querySelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')) return;
+      if (sel.classList.contains('ant-select-open')) return; // 使用者正在操作這個欄位
       autoSelBusy = true;
       try {
         await sleep(500); // 等對話框開啟動畫結束
@@ -395,6 +395,7 @@
           top.btn.click(); // 觸發 window.open → 被攔截 → 頁面內顯示
           await sleep(800);
           setStatus('');
+          autoSelectAllCodes(dlg); // 匯出後 App 會清空處置項目，補回「全部代碼」
           return;
         }
         setStatus('等太久了，請直接點右側的「下載報表」', true);
