@@ -6,7 +6,7 @@
 |---|---|---|
 | `dentall-treatment-report-viewer.user.js` | 「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js) |
 | `dentall-registration-sort-memory.user.js` | 「就診列表」記住上次點選的排序欄位與方向，回到畫面自動套用 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js) |
-| `dentall-registration-new-patient-alert.user.js` | 「就診列表」出現新掛號病患時，畫面下方跳出醒目提醒方塊、播放提示音並把該列標黃，點哪一位就關掉那一位 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js) |
+| `dentall-registration-new-patient-alert.user.js` | 「就診列表」出現新掛號病患時，畫面下方跳出醒目提醒方塊、語音播報「○○醫師，○點○分預約病患抵達」並把該列標黃，點哪一位就關掉那一位 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js) |
 
 ---
 
@@ -79,14 +79,14 @@
 
 ## Dentall 就診列表 新掛號提醒
 
-就診列表出現新掛號的病患時，畫面中間下方會跳出橘色的提醒方塊並播放「叮咚」提示音，列出 **序位、姓名、主治醫師、預約時間、掛號時間**，同時把該列在表格裡標成黃色。
+就診列表出現新掛號的病患時，畫面中間下方會跳出橘色的提醒方塊，先一聲短「叮」、再語音播報「**○○醫師，○點○分預約病患抵達**」（沒有預約時間的現場掛號會唸「現場掛號病患抵達」），列出 **序位、姓名、主治醫師、預約時間、掛號時間**，同時把該列在表格裡標成黃色。
 方塊不是新視窗、也不會自動消失：**點某一位病患只會關掉那一筆**（該列的黃色標示一起消失），右上角 ✕ 才是全部關閉。關閉前再有新病患會累加在同一個方塊裡，標題顯示人數。
 
 ### 使用方式
 
 裝好就會自動運作，不用設定。注意事項：
 
-- 提示音用瀏覽器內建的 WebAudio 產生，不需要音檔；但瀏覽器規定頁面要先被點過、按過鍵盤才允許出聲，所以剛打開頁面、完全沒碰過之前來的新病患不會立刻響，會等你下一次點畫面或按鍵時補響一次（方塊本身照常顯示）。之後就都即時。
+- 語音用瀏覽器內建的語音合成（Web Speech API，台灣國語聲音），不需要音檔或外部服務。Windows 若沒有中文語音，到「設定 → 時間與語言 → 語音」加入「中文（台灣）」即可。但瀏覽器規定頁面要先被點過、按過鍵盤才允許出聲，所以剛打開頁面、完全沒碰過之前來的新病患不會立刻響，會等你下一次點畫面或按鍵時補響一次（方塊本身照常顯示）。之後就都即時。
 - 必須讓 Dentall 的就診列表分頁留在前景，Dentall 才會自己更新列表（分頁被切到背景時 Dentall 會暫停更新，切回來後會補更新，那時再提醒）。
 - 第一次打開某一天的就診列表只會默默記下目前已有的病患，不會整排跳出來；之後新增的才提醒。
 - 已看過的病患記在這台電腦的瀏覽器（localStorage，依日期分開、保留最近 5 天），重新整理或切到別的頁面再回來都不會重複提醒。

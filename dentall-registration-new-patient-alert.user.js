@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Dentall 就診列表 新掛號提醒
 // @namespace    htdayreportviewer
-// @version      1.3.0
-// @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面中間下方跳出醒目的提醒方塊並播放提示音（列出序位、姓名、醫師、時間），該列標成黃色；點哪一位就只關掉那一位。
+// @version      1.4.0
+// @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面中間下方跳出醒目的提醒方塊，並語音播報「○○醫師，○點○分預約病患抵達」（列出序位、姓名、醫師、時間），該列標成黃色；點哪一位就只關掉那一位。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
 // @supportURL   https://github.com/seanawa/dentall-userscripts/issues
@@ -19,7 +19,7 @@
  *   2. 表格一有變化就比對，出現沒看過、而且門診處置不是「已完成」的列 → 顯示提醒方塊並把該列標黃。
  *   3. 第一次看到某一天的列表時只默默記下來，不提醒（避免一開畫面就跳一整排）。
  *      一次冒出超過 MAX_BURST 列也視為「整批載入」而不提醒（例如切換篩選）。
- *   4. 提醒方塊固定在畫面中間下方並播放提示音；點某一位只關掉那一位，右上角 ✕ 全部關掉；期間再有新病患會累加在同一個方塊裡。
+ *   4. 提醒方塊固定在畫面中間下方，先一聲短「叮」再語音播報「○○醫師，○點○分預約病患抵達」；點某一位只關掉那一位，右上角 ✕ 全部關掉；期間再有新病患會累加在同一個方塊裡。
  * 不碰任何資料、不呼叫 API。
  */
 (function () {
@@ -173,7 +173,12 @@
     box.querySelector('.dus-np-head > span').textContent = `🔔 新掛號病患（${n}）`;
   }
 
-  // ---------- 提示音（WebAudio，不需要音檔）----------
+  // ---------- 提示音 + 語音播報 ----------
+  // 瀏覽器規定頁面要先被點過／按過鍵才允許出聲；還沒點過時先排隊，等使用者一有動作就補播。
+  const CHIME = true;           // 播報前先一聲短「叮」
+  const SPEAK = true;           // 語音播報
+  const SPEECH_RATE = 1.0;      // 語速 0.5~2
+  const SPEECH_LANG = 'zh-TW';
   let audioCtx = null;
   function getAudio() {
     if (!audioCtx) {
@@ -183,41 +188,78 @@
     }
     return audioCtx;
   }
-  function beep() {
-    const ctx = getAudio();
-    if (!ctx) return;
-    // 三聲上行「叮咚咚」，連響兩次；VOLUME 0~1
-    const VOLUME = 0.9;
-    const play = () => {
-      const t0 = ctx.currentTime;
-      [0, 1.0].forEach((rep) => {
-        [[880, 0], [1175, 0.18], [1568, 0.36]].forEach(([freq, dt]) => {
-          const osc = ctx.createOscillator();
-          const g = ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.value = freq;
-          const t = t0 + rep + dt;
-          g.gain.setValueAtTime(0.0001, t);
-          g.gain.exponentialRampToValueAtTime(VOLUME, t + 0.02);
-          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
-          osc.connect(g).connect(ctx.destination);
-          osc.start(t);
-          osc.stop(t + 0.6);
-        });
-      });
-    };
-    if (ctx.state === 'running') { play(); return; }
-    // 瀏覽器規定頁面要先被點過／按過鍵才允許出聲：先記下來，等使用者一有動作就補響
-    pendingBeep = true;
-    ctx.resume().then(() => { if (ctx.state === 'running' && pendingBeep) { pendingBeep = false; play(); } }).catch(() => {});
+  function activated() {
+    if (navigator.userActivation) return navigator.userActivation.hasBeenActive;
+    const c = getAudio();
+    return !!c && c.state === 'running';
   }
-  let pendingBeep = false;
+  function chime() {
+    const ctx = getAudio();
+    if (!ctx) return 0;
+    const t0 = ctx.currentTime;
+    [[880, 0], [1175, 0.18], [1568, 0.36]].forEach(([freq, dt]) => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      const t = t0 + dt;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.9, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+      osc.connect(g).connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.6);
+    });
+    return 900; // 毫秒，之後再開始唸
+  }
+  function pickVoice() {
+    const voices = speechSynthesis.getVoices();
+    return voices.find((v) => /^zh[-_]TW/i.test(v.lang) && /Google|Microsoft|Mei-Jia|美佳/i.test(v.name)) ||
+      voices.find((v) => /^zh[-_]TW/i.test(v.lang)) ||
+      voices.find((v) => /^zh/i.test(v.lang)) || null;
+  }
+  if ('speechSynthesis' in window) { speechSynthesis.getVoices(); speechSynthesis.addEventListener('voiceschanged', () => {}); }
+  function speechText(r) {
+    const doc = r.doctor ? `${r.doctor}醫師，` : '';
+    const m = r.apptTime && r.apptTime.match(/^(\d{1,2}):(\d{2})$/);
+    if (m) {
+      const h = parseInt(m[1], 10);
+      const mm = parseInt(m[2], 10);
+      return `${doc}${h}點${mm ? mm + '分' : ''}預約病患抵達`;
+    }
+    return `${doc}現場掛號病患抵達`;
+  }
+  function speak(rows) {
+    if (!('speechSynthesis' in window)) return;
+    const voice = pickVoice();
+    for (const r of rows) {
+      const u = new SpeechSynthesisUtterance(speechText(r));
+      u.lang = SPEECH_LANG;
+      u.rate = SPEECH_RATE;
+      u.volume = 1;
+      if (voice) u.voice = voice;
+      speechSynthesis.speak(u);
+    }
+  }
+  function playNow(rows) {
+    const ctx = getAudio();
+    const go = () => {
+      const delay = CHIME ? chime() : 0;
+      if (SPEAK) setTimeout(() => speak(rows), delay);
+    };
+    if (ctx && ctx.state === 'suspended') ctx.resume().then(go).catch(go); else go();
+  }
+  let pending = [];
+  function announce(rows) {
+    if (activated()) { playNow(rows); return; }
+    pending.push(...rows);
+    console.log(TAG, '頁面尚未互動，提示音排隊等待', pending.length);
+  }
   ['pointerdown', 'keydown'].forEach((ev) =>
     document.addEventListener(ev, () => {
-      const c = getAudio();
-      if (!c) return;
-      const after = () => { if (pendingBeep && document.getElementById(BOX_ID)) { pendingBeep = false; beep(); } else { pendingBeep = false; } };
-      if (c.state === 'suspended') c.resume().then(after).catch(() => {}); else after();
+      if (!pending.length) return;
+      const rows = pending; pending = [];
+      if (document.getElementById(BOX_ID)) playNow(rows);
     }, { capture: true, passive: true }));
 
   function notify(rows) {
@@ -254,7 +296,7 @@
     }
     updateCount(box);
     applyHighlight();
-    beep();
+    announce(rows);
   }
 
   function esc(s) {
