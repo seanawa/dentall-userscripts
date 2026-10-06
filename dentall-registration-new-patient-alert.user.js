@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 就診列表 新掛號提醒
 // @namespace    htdayreportviewer
-// @version      1.4.0
+// @version      1.4.1
 // @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面中間下方跳出醒目的提醒方塊，並語音播報「○○醫師，○點○分預約病患抵達」（列出序位、姓名、醫師、時間），該列標成黃色；點哪一位就只關掉那一位。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -212,11 +212,15 @@
     });
     return 900; // 毫秒，之後再開始唸
   }
+  // 聲音優先順序（找得到的第一個）：Google 國語（臺灣）每台 Chrome 都有、聲音一致；其次 Windows 的 Microsoft 雅婷／漢漢；再來 Mac 的美佳
+  const VOICE_PREFS = [/Google/i, /Yating|雅婷/i, /Hanhan|漢漢/i, /Zhiwei|志威/i, /Mei-Jia|美佳/i];
   function pickVoice() {
-    const voices = speechSynthesis.getVoices();
-    return voices.find((v) => /^zh[-_]TW/i.test(v.lang) && /Google|Microsoft|Mei-Jia|美佳/i.test(v.name)) ||
-      voices.find((v) => /^zh[-_]TW/i.test(v.lang)) ||
-      voices.find((v) => /^zh/i.test(v.lang)) || null;
+    const voices = speechSynthesis.getVoices().filter((v) => /^zh[-_]TW/i.test(v.lang));
+    for (const re of VOICE_PREFS) {
+      const v = voices.find((x) => re.test(x.name));
+      if (v) return v;
+    }
+    return voices[0] || speechSynthesis.getVoices().find((v) => /^zh/i.test(v.lang)) || null;
   }
   if ('speechSynthesis' in window) { speechSynthesis.getVoices(); speechSynthesis.addEventListener('voiceschanged', () => {}); }
   function speechText(r) {
