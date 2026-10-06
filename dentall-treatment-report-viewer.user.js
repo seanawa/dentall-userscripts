@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 治療項目統計 線上瀏覽
 // @namespace    htdayreportviewer
-// @version      1.0.1
+// @version      1.1.0
 // @description  在 his.dentall.io 的「治療項目統計」按下「下載報表」時，直接在網頁上顯示統計與明細，不必開 Excel。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/htdayreportviewer
@@ -40,7 +40,7 @@
       } catch (e) { console.warn(TAG, e); }
       return originalOpen(url, ...rest);
     };
-    console.log(TAG, 'v1.0.1 已啟動，window.open 已接管');
+    console.log(TAG, 'v1.1.0 已啟動，window.open 已接管');
 
     // ---------- SheetJS 延遲載入 ----------
     let xlsxPromise = null;
@@ -83,6 +83,12 @@
     .drv-table tr.total td.first{background:#fffbe6;}
     .drv-loading{padding:40px;text-align:center;color:#666;}
     .drv-err{padding:20px;color:#c00;white-space:pre-wrap;}
+    .drv-gen{margin:0 0 10px;}
+    .drv-gen button{width:100%;height:44px;border-radius:22px;border:1px solid #1677ff;background:#fff;color:#1677ff;font-size:15px;font-weight:600;cursor:pointer;}
+    .drv-gen button:hover{background:#f0f6ff;}
+    .drv-gen button:disabled{opacity:.6;cursor:default;}
+    .drv-gen .drv-gen-status{margin:6px 0 0;font-size:13px;color:#666;text-align:center;min-height:18px;}
+    .drv-gen .drv-gen-status.err{color:#c00;}
     `;
 
     function injectCss() {
@@ -267,6 +273,103 @@
       colSel.onchange = draw;
       draw();
     }
+
+    // ---------- 「生成報表」按鈕：匯出 → 等製作完成 → 自動開啟瀏覽 ----------
+    const EXPORT_RE = /匯出\s*EXCEL/i;
+    function findDialog() {
+      return [...document.querySelectorAll('.ant-modal')].find((m) => {
+        const t = m.querySelector('.ant-modal-title');
+        return t && /治療項目統計/.test(t.textContent || '');
+      }) || null;
+    }
+    function findExportButton(dlg) {
+      return [...dlg.querySelectorAll('button')].find((b) => EXPORT_RE.test(b.textContent || '')) || null;
+    }
+    // 右側每一張報表卡片：{ time: 匯出時間, ready: 是否可下載, btn: 下載按鈕 }
+    function readCards(dlg) {
+      const out = [];
+      for (const b of dlg.querySelectorAll('button')) {
+        const txt = (b.textContent || '').trim();
+        if (!/下載報表|製作中/.test(txt)) continue;
+        let c = b;
+        while (c && c !== dlg && !/匯出時間/.test(c.textContent || '')) c = c.parentElement;
+        const m = c && (c.textContent || '').match(/匯出時間\s*([\d\/]+\s+[\d:]+)/);
+        out.push({ time: m ? m[1] : '', ready: /下載報表/.test(txt), btn: b });
+      }
+      return out;
+    }
+
+    function injectGenerateButton() {
+      const dlg = findDialog();
+      if (!dlg || dlg.querySelector('.drv-gen')) return;
+      const exportBtn = findExportButton(dlg);
+      if (!exportBtn || !exportBtn.parentElement) return;
+      injectCss();
+      const wrap = el('div', 'drv-gen');
+      const btn = el('button'); btn.type = 'button'; btn.textContent = '生成報表（直接瀏覽）';
+      btn.title = '自動按「匯出 EXCEL」，等報表製作完成後直接在頁面上開啟';
+      const status = el('div', 'drv-gen-status');
+      wrap.append(btn, status);
+      exportBtn.parentElement.insertBefore(wrap, exportBtn);
+      btn.onclick = () => generateAndView(btn, status);
+    }
+
+    async function generateAndView(btn, status) {
+      const setStatus = (t, isErr) => { status.textContent = t; status.classList.toggle('err', !!isErr); };
+      let dlg = findDialog();
+      if (!dlg) return;
+      const exportBtn = findExportButton(dlg);
+      if (!exportBtn) { setStatus('找不到「匯出 EXCEL」按鈕', true); return; }
+
+      const before = readCards(dlg);
+      const beforeCount = before.length;
+      const beforeTopTime = before[0] ? before[0].time : '';
+
+      btn.disabled = true;
+      setStatus('送出匯出請求…');
+      exportBtn.click();
+
+      const started = Date.now();
+      const TIMEOUT = 120000;
+      try {
+        while (Date.now() - started < TIMEOUT) {
+          await sleep(1000);
+          dlg = findDialog();
+          if (!dlg) { setStatus(''); return; } // 使用者關掉對話框
+          if (/請選擇處置項目|請選擇醫師|請選擇日期/.test(dlg.textContent || '')) {
+            setStatus('請先選好必填欄位（例如處置項目），再按一次', true);
+            return;
+          }
+          const cards = readCards(dlg);
+          const top = cards[0];
+          const isNew = cards.length > beforeCount || (top && top.time !== beforeTopTime);
+          if (!isNew) {
+            if (Date.now() - started > 8000) { setStatus('沒有看到新的報表，請確認欄位都已選好', true); return; }
+            setStatus('等待報表建立…');
+            continue;
+          }
+          if (!top.ready) { setStatus('報表製作中… ' + Math.round((Date.now() - started) / 1000) + ' 秒'); continue; }
+          setStatus('完成，開啟報表');
+          top.btn.click(); // 觸發 window.open → 被攔截 → 頁面內顯示
+          await sleep(800);
+          setStatus('');
+          return;
+        }
+        setStatus('等太久了，請直接點右側的「下載報表」', true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+    // 對話框是動態出現的，用 MutationObserver 監看並在出現時注入按鈕
+    function watchDialog() {
+      const obs = new MutationObserver(() => injectGenerateButton());
+      const start = () => { obs.observe(document.body, { childList: true, subtree: true }); injectGenerateButton(); };
+      if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+    }
+    watchDialog();
 
     // ---------- 小工具 ----------
     function el(tag, cls) { const e = document.createElement(tag); if (cls) e.className = cls; return e; }
