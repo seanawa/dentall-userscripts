@@ -61,9 +61,9 @@
 <body>
 <div class="wrap">
   <h1>Dentall 報表瀏覽 安裝清單</h1>
-  <p class="sub">泓泰牙醫診所公用電腦用。照順序打勾，五步完成。進度只存在這台電腦的瀏覽器裡。</p>
+  <p class="sub">泓泰牙醫診所公用電腦用。照順序打勾，六步完成。進度只存在這台電腦的瀏覽器裡。</p>
 
-  <div class="progress"><div class="bar"><i id="bar"></i></div><b id="prog">0 / 5</b></div>
+  <div class="progress"><div class="bar"><i id="bar"></i></div><b id="prog">0 / 6</b></div>
 
   <div class="card step" data-step="1">
     <input type="checkbox" aria-label="步驟 1 完成">
@@ -105,7 +105,19 @@
   <div class="card step" data-step="4">
     <input type="checkbox" aria-label="步驟 4 完成">
     <div class="body">
-      <h2>4. 登入 Dentall 並確認腳本有在跑</h2>
+      <h2>4. 完全關閉 Chrome，再重新打開</h2>
+      <p>讓剛才的設定和腳本確實生效。</p>
+      <ol class="sub-steps">
+        <li>關掉所有 Chrome 視窗。Windows 請再看一下右下角工作列的隱藏圖示，若還有 Chrome 圖示，右鍵 →「結束」。Mac 請按 <kbd>Cmd</kbd>+<kbd>Q</kbd>。</li>
+        <li>重新打開 Chrome。</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="card step" data-step="5">
+    <input type="checkbox" aria-label="步驟 5 完成">
+    <div class="body">
+      <h2>5. 登入 Dentall 並確認腳本有在跑</h2>
       <a class="link" href="https://his.dentall.io/htdc/" target="_blank" rel="noopener">開啟 Dentall HIS</a>
       <p>登入後，在 Dentall 頁面點工具列的 Tampermonkey 圖示，應該看到：</p>
       <ol class="sub-steps">
@@ -116,17 +128,17 @@
     </div>
   </div>
 
-  <div class="card step" data-step="5">
-    <input type="checkbox" aria-label="步驟 5 完成">
+  <div class="card step" data-step="6">
+    <input type="checkbox" aria-label="步驟 6 完成">
     <div class="body">
-      <h2>5. 實際測試一次</h2>
+      <h2>6. 實際測試一次</h2>
       <ol class="sub-steps">
         <li>Dentall 上方選單「分析報表」→「治療項目統計」。</li>
         <li>日期選昨天，處置項目選「全部代碼」，按「匯出 EXCEL」。</li>
         <li>右側出現新的一筆，等「製作中」變成「下載報表」後點它。</li>
       </ol>
       <div class="ok">成功：畫面直接跳出統計表，有「統計（項目 × 醫師）」「統計（醫師 × 項目）」「明細」三個分頁，沒有下載任何檔案。</div>
-      <div class="note">失敗：還是下載了 Excel。先按 <kbd>F5</kbd> 重新整理 Dentall 頁面再試一次，仍不行就回到步驟 4 檢查。</div>
+      <div class="note">失敗：還是下載了 Excel。先按 <kbd>F5</kbd> 重新整理 Dentall 頁面再試一次，仍不行就回到步驟 5 檢查。</div>
     </div>
   </div>
 

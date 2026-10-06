@@ -14,7 +14,8 @@
    - 找到「允許使用者指令碼」(Allow User Scripts) 那一列，把開關打開
    - 舊版 Chrome 沒有這個選項的話，改在 `chrome://extensions` 右上角開啟「開發人員模式」
 3. 點這個連結：**[安裝腳本](https://raw.githubusercontent.com/seanawa/htdayreportviewer/main/dentall-treatment-report-viewer.user.js)**，在跳出的 Tampermonkey 畫面按「安裝」。
-4. 重新整理 Dentall 頁面。
+4. **完全關閉 Chrome 再重新打開**（Windows 請確認工作列隱藏圖示裡沒有殘留的 Chrome；Mac 按 Cmd+Q）。
+5. 登入 Dentall，重新整理頁面。
 
 > 檢查是否成功：在 Dentall 頁面點 Tampermonkey 圖示，應看到「Dentall 治療項目統計 線上瀏覽」開關為綠色，且圖示上有數字 1。
 > 若圖示彈窗上方出現藍色橫幅「請啟用『允許使用者腳本』」，代表第 2 步還沒做。
