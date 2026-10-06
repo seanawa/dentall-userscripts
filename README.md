@@ -2,6 +2,10 @@
 
 讓 [his.dentall.io](https://his.dentall.io) 的「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel。
 
+## 診所電腦安裝清單
+
+逐步打勾的安裝清單（含所有連結）：**https://seanawa.github.io/htdayreportviewer/**
+
 ## 一鍵安裝
 
 1. Chrome 安裝 [Tampermonkey](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) 擴充功能。
