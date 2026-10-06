@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 治療項目統計 線上瀏覽
 // @namespace    htdayreportviewer
-// @version      1.1.0
+// @version      1.1.1
 // @description  在 his.dentall.io 的「治療項目統計」按下「下載報表」時，直接在網頁上顯示統計與明細，不必開 Excel。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/htdayreportviewer
@@ -40,7 +40,7 @@
       } catch (e) { console.warn(TAG, e); }
       return originalOpen(url, ...rest);
     };
-    console.log(TAG, 'v1.1.0 已啟動，window.open 已接管');
+    console.log(TAG, 'v1.1.1 已啟動，window.open 已接管');
 
     // ---------- SheetJS 延遲載入 ----------
     let xlsxPromise = null;
@@ -147,14 +147,14 @@
       const header = sheet.rows[0] || [];
       const data = sheet.rows.slice(1).filter((r) => r.some((c) => String(c).trim() !== ''));
 
+      // 分頁順序：明細（預設）→ 統計（醫師 × 項目）
       const views = [];
+      views.push({ name: '明細（' + data.length + ' 筆）', render: (c) => renderDetail(c, header, data) });
       const itemIdx = header.findIndex((h) => /處置項目|項目/.test(String(h)));
       const docIdx = header.findIndex((h) => /醫師/.test(String(h)));
       if (itemIdx >= 0 && docIdx >= 0) {
-        views.push({ name: '統計（項目 × 醫師）', render: (c) => renderPivot(c, data, itemIdx, docIdx) });
         views.push({ name: '統計（醫師 × 項目）', render: (c) => renderPivot(c, data, docIdx, itemIdx) });
       }
-      views.push({ name: '明細（' + data.length + ' 筆）', render: (c) => renderDetail(c, header, data) });
       for (let i = 1; i < sheets.length; i++) {
         const s = sheets[i];
         views.push({ name: s.name, render: (c) => renderDetail(c, s.rows[0] || [], s.rows.slice(1)) });
