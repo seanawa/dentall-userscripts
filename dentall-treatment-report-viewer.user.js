@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 治療項目統計 線上瀏覽
 // @namespace    htdayreportviewer
-// @version      1.1.1
+// @version      1.2.0
 // @description  在 his.dentall.io 的「治療項目統計」按下「下載報表」時，直接在網頁上顯示統計與明細，不必開 Excel。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/htdayreportviewer
@@ -40,7 +40,7 @@
       } catch (e) { console.warn(TAG, e); }
       return originalOpen(url, ...rest);
     };
-    console.log(TAG, 'v1.1.1 已啟動，window.open 已接管');
+    console.log(TAG, 'v1.2.0 已啟動，window.open 已接管');
 
     // ---------- SheetJS 延遲載入 ----------
     let xlsxPromise = null;
@@ -299,9 +299,49 @@
       return out;
     }
 
+    // ---------- 處置項目自動選取「全部代碼」 ----------
+    // 時機：對話框打開時、以及匯出後 App 把欄位清空時。欄位有內容或正在輸入時不動它。
+    let autoSelBusy = false, autoSelFails = 0, autoSelDlg = null;
+    async function autoSelectAllCodes(dlg) {
+      if (dlg !== autoSelDlg) { autoSelDlg = dlg; autoSelFails = 0; }
+      if (autoSelBusy || autoSelFails >= 3) return;
+      const sel = dlg.querySelector('.ant-select-auto-complete');
+      const input = sel && sel.querySelector('input');
+      if (!input || input.value.trim() !== '') return;
+      if (document.activeElement === input) return;
+      if (document.querySelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')) return;
+      autoSelBusy = true;
+      try {
+        const selector = sel.querySelector('.ant-select-selector') || sel;
+        input.focus();
+        selector.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+        let opt = null;
+        for (let i = 0; i < 20 && !opt; i++) {
+          await sleep(100);
+          opt = [...document.querySelectorAll('.ant-select-dropdown .ant-select-item-option')]
+            .find((o) => (o.textContent || '').trim() === '全部代碼');
+        }
+        if (opt) {
+          opt.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+          await sleep(200);
+          console.log(TAG, '處置項目已自動選取「全部代碼」');
+        } else {
+          autoSelFails++;
+        }
+        input.blur();
+      } catch (e) {
+        autoSelFails++;
+        console.warn(TAG, '自動選取失敗', e);
+      } finally {
+        autoSelBusy = false;
+      }
+    }
+
     function injectGenerateButton() {
       const dlg = findDialog();
-      if (!dlg || dlg.querySelector('.drv-gen')) return;
+      if (!dlg) return;
+      autoSelectAllCodes(dlg);
+      if (dlg.querySelector('.drv-gen')) return;
       const exportBtn = findExportButton(dlg);
       if (!exportBtn || !exportBtn.parentElement) return;
       injectCss();
