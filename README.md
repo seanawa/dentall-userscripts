@@ -5,6 +5,7 @@
 | 腳本 | 說明 | 安裝 |
 |---|---|---|
 | `dentall-treatment-report-viewer.user.js` | 「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js) |
+| `dentall-registration-sort-memory.user.js` | 「就診列表」記住上次點選的排序欄位與方向，回到畫面自動套用 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js) |
 
 ---
 
@@ -27,7 +28,7 @@
 4. **完全關閉 Chrome 再重新打開**（Windows 請確認工作列隱藏圖示裡沒有殘留的 Chrome；Mac 按 Cmd+Q）。
 5. 登入 Dentall，重新整理頁面。
 
-> 檢查是否成功：在 Dentall 頁面點 Tampermonkey 圖示，應看到「Dentall 治療項目統計 線上瀏覽」開關為綠色，且圖示上有數字 1。
+> 檢查是否成功：在 Dentall 頁面點 Tampermonkey 圖示，應看到已安裝的腳本開關為綠色，且圖示上的數字等於已安裝的腳本數。
 > 若圖示彈窗上方出現藍色橫幅「請啟用『允許使用者腳本』」，代表第 2 步還沒做。
 
 之後腳本有更新，Tampermonkey 會自動抓取，不需要重裝。
@@ -58,3 +59,17 @@
 - 只攔截 `storage.googleapis.com` 上的 `.xlsx`，其他下載行為不受影響。
 - 腳本內沒有任何帳號、密碼或病患資料。
 - 若 Dentall 之後改成不透過 `window.open` 下載，腳本需要調整。
+
+---
+
+## Dentall 就診列表 記住排序
+
+就診列表的表頭可以點「序位 / 掛號時間 / 預約時間 / 主治醫師 / 門診處置」排序，但 Dentall 每次離開再回到就診列表都會重設為「掛號時間 由新到舊」。
+裝了這支腳本後，你點過的排序會被記住，之後每次回到就診列表（含重新整理、重開瀏覽器）都自動套用。
+
+### 使用方式
+
+照平常一樣點表頭排序即可，不用額外設定。點到「沒有箭頭」的狀態（第三次點同一欄）就等於回到系統預設。
+
+- 記住的內容只存在這台電腦的瀏覽器（localStorage），每台電腦各自記。
+- 不碰任何資料、不呼叫 API，只是代替你點表頭。
