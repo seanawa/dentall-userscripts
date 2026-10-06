@@ -1,0 +1,36 @@
+# Dentall 治療項目統計 線上瀏覽
+
+讓 [his.dentall.io](https://his.dentall.io) 的「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel。
+
+## 一鍵安裝
+
+1. Chrome 安裝 [Tampermonkey](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) 擴充功能。
+2. 點這個連結：**[安裝腳本](https://raw.githubusercontent.com/seanawa/htdayreportviewer/main/dentall-treatment-report-viewer.user.js)**，在跳出的 Tampermonkey 畫面按「安裝」。
+3. 重新整理 Dentall 頁面。
+
+> Chrome 若提示要開啟「開發人員模式」才能執行使用者腳本：到 `chrome://extensions` 右上角開啟「開發人員模式」，再重新整理頁面。
+
+之後腳本有更新，Tampermonkey 會自動抓取，不需要重裝。
+
+## 使用方式
+
+分析報表 → 治療項目統計 → 選日期 / 醫師 / 處置項目 → 匯出 EXCEL → 等狀態變成「下載報表」→ 點「下載報表」。
+
+會直接跳出報表視窗，提供三個分頁：
+
+| 分頁 | 內容 |
+|---|---|
+| 統計（項目 × 醫師） | 每個處置代碼在各醫師的次數與合計，底部有總計列 |
+| 統計（醫師 × 項目） | 同樣的數字，軸互換 |
+| 明細 | 原始每一列，可搜尋任意欄位、指定欄位篩選、點欄位標題排序 |
+
+右上角保留「下載 Excel」按鈕，需要檔案時照舊可下載。按 Esc、點「關閉」或點視窗外即可關閉。
+
+## 原理
+
+按「匯出 EXCEL」後，Dentall 伺服器會產生 xlsx 放到 Google Cloud Storage，網頁再用 `window.open(檔案網址)` 觸發下載。
+本腳本攔截該動作，改成在頁面內抓取 xlsx、以 [SheetJS](https://sheetjs.com/) 解析後直接顯示。
+
+- 只攔截 `storage.googleapis.com` 上的 `.xlsx`，其他下載行為不受影響。
+- 腳本內沒有任何帳號、密碼或病患資料。
+- 若 Dentall 之後改成不透過 `window.open` 下載，腳本需要調整。
