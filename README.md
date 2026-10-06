@@ -5,10 +5,15 @@
 ## 一鍵安裝
 
 1. Chrome 安裝 [Tampermonkey](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) 擴充功能。
-2. 點這個連結：**[安裝腳本](https://raw.githubusercontent.com/seanawa/htdayreportviewer/main/dentall-treatment-report-viewer.user.js)**，在跳出的 Tampermonkey 畫面按「安裝」。
-3. 重新整理 Dentall 頁面。
+2. **開啟「允許使用者指令碼」**（新版 Chrome 必做，否則腳本不會執行）：
+   - 網址列輸入 `chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo` 按 Enter
+   - 找到「允許使用者指令碼」(Allow User Scripts) 那一列，把開關打開
+   - 舊版 Chrome 沒有這個選項的話，改在 `chrome://extensions` 右上角開啟「開發人員模式」
+3. 點這個連結：**[安裝腳本](https://raw.githubusercontent.com/seanawa/htdayreportviewer/main/dentall-treatment-report-viewer.user.js)**，在跳出的 Tampermonkey 畫面按「安裝」。
+4. 重新整理 Dentall 頁面。
 
-> Chrome 若提示要開啟「開發人員模式」才能執行使用者腳本：到 `chrome://extensions` 右上角開啟「開發人員模式」，再重新整理頁面。
+> 檢查是否成功：在 Dentall 頁面點 Tampermonkey 圖示，應看到「Dentall 治療項目統計 線上瀏覽」開關為綠色，且圖示上有數字 1。
+> 若圖示彈窗上方出現藍色橫幅「請啟用『允許使用者腳本』」，代表第 2 步還沒做。
 
 之後腳本有更新，Tampermonkey 會自動抓取，不需要重裝。
 
