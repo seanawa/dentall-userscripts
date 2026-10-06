@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 就診列表 新掛號提醒
 // @namespace    htdayreportviewer
-// @version      1.4.1
+// @version      1.5.0
 // @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面中間下方跳出醒目的提醒方塊，並語音播報「○○醫師，○點○分預約病患抵達」（列出序位、姓名、醫師、時間），該列標成黃色；點哪一位就只關掉那一位。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -19,7 +19,7 @@
  *   2. 表格一有變化就比對，出現沒看過、而且門診處置不是「已完成」的列 → 顯示提醒方塊並把該列標黃。
  *   3. 第一次看到某一天的列表時只默默記下來，不提醒（避免一開畫面就跳一整排）。
  *      一次冒出超過 MAX_BURST 列也視為「整批載入」而不提醒（例如切換篩選）。
- *   4. 提醒方塊固定在畫面中間下方，先一聲短「叮」再語音播報「○○醫師，○點○分預約病患抵達」；點某一位只關掉那一位，右上角 ✕ 全部關掉；期間再有新病患會累加在同一個方塊裡。
+ *   4. 提醒方塊固定在畫面中間下方，先一聲短「叮」再語音播報「○○醫師，○點○分預約病患抵達」（右下角「🔔 提醒設定」可關閉、選聲音、調語速音量，設定存在這台電腦）；點某一位只關掉那一位，右上角 ✕ 全部關掉；期間再有新病患會累加在同一個方塊裡。
  * 不碰任何資料、不呼叫 API。
  */
 (function () {
@@ -173,11 +173,14 @@
     box.querySelector('.dus-np-head > span').textContent = `🔔 新掛號病患（${n}）`;
   }
 
+  // ---------- 聲音設定（每台電腦各自存在 localStorage，右下角「🔔 提醒設定」可調）----------
+  const SET_KEY = 'dentall-registration-alert-settings';
+  const DEFAULTS = { chime: true, speak: true, voice: '', rate: 1.0, volume: 1.0 };
+  let settings = Object.assign({}, DEFAULTS, (() => { try { return JSON.parse(localStorage.getItem(SET_KEY) || '{}'); } catch (_) { return {}; } })());
+  function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(settings)); } catch (_) { /* ignore */ } }
+
   // ---------- 提示音 + 語音播報 ----------
   // 瀏覽器規定頁面要先被點過／按過鍵才允許出聲；還沒點過時先排隊，等使用者一有動作就補播。
-  const CHIME = true;           // 播報前先一聲短「叮」
-  const SPEAK = true;           // 語音播報
-  const SPEECH_RATE = 1.0;      // 語速 0.5~2
   const SPEECH_LANG = 'zh-TW';
   let audioCtx = null;
   function getAudio() {
@@ -197,6 +200,7 @@
     const ctx = getAudio();
     if (!ctx) return 0;
     const t0 = ctx.currentTime;
+    const vol = Math.max(0.05, Math.min(1, settings.volume)) * 0.9;
     [[880, 0], [1175, 0.18], [1568, 0.36]].forEach(([freq, dt]) => {
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
@@ -204,7 +208,7 @@
       osc.frequency.value = freq;
       const t = t0 + dt;
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.9, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.02);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
       osc.connect(g).connect(ctx.destination);
       osc.start(t);
@@ -212,10 +216,18 @@
     });
     return 900; // 毫秒，之後再開始唸
   }
-  // 聲音優先順序（找得到的第一個）：Google 國語（臺灣）每台 Chrome 都有、聲音一致；其次 Windows 的 Microsoft 雅婷／漢漢；再來 Mac 的美佳
+  function zhVoices() {
+    if (!('speechSynthesis' in window)) return [];
+    return speechSynthesis.getVoices().filter((v) => /^zh[-_]TW/i.test(v.lang));
+  }
+  // 自動選擇的優先順序：Google 國語（臺灣）每台 Chrome 都有、聲音一致；其次 Windows 的 Microsoft 雅婷／漢漢；再來 Mac 的美佳
   const VOICE_PREFS = [/Google/i, /Yating|雅婷/i, /Hanhan|漢漢/i, /Zhiwei|志威/i, /Mei-Jia|美佳/i];
   function pickVoice() {
-    const voices = speechSynthesis.getVoices().filter((v) => /^zh[-_]TW/i.test(v.lang));
+    const voices = zhVoices();
+    if (settings.voice) {
+      const v = voices.find((x) => x.name === settings.voice);
+      if (v) return v;
+    }
     for (const re of VOICE_PREFS) {
       const v = voices.find((x) => re.test(x.name));
       if (v) return v;
@@ -239,8 +251,8 @@
     for (const r of rows) {
       const u = new SpeechSynthesisUtterance(speechText(r));
       u.lang = SPEECH_LANG;
-      u.rate = SPEECH_RATE;
-      u.volume = 1;
+      u.rate = settings.rate;
+      u.volume = settings.volume;
       if (voice) u.voice = voice;
       speechSynthesis.speak(u);
     }
@@ -248,13 +260,14 @@
   function playNow(rows) {
     const ctx = getAudio();
     const go = () => {
-      const delay = CHIME ? chime() : 0;
-      if (SPEAK) setTimeout(() => speak(rows), delay);
+      const delay = settings.chime ? chime() : 0;
+      if (settings.speak) setTimeout(() => speak(rows), delay);
     };
     if (ctx && ctx.state === 'suspended') ctx.resume().then(go).catch(go); else go();
   }
   let pending = [];
   function announce(rows) {
+    if (!settings.chime && !settings.speak) return;
     if (activated()) { playNow(rows); return; }
     pending.push(...rows);
     console.log(TAG, '頁面尚未互動，提示音排隊等待', pending.length);
@@ -265,6 +278,100 @@
       const rows = pending; pending = [];
       if (document.getElementById(BOX_ID)) playNow(rows);
     }, { capture: true, passive: true }));
+
+  // ---------- 設定面板 ----------
+  const SET_BTN_ID = 'dus-np-settings-btn';
+  const SET_PANEL_ID = 'dus-np-settings-panel';
+  function ensureSettingsStyle() {
+    if (document.getElementById(STYLE_ID + '-set')) return;
+    const st = document.createElement('style');
+    st.id = STYLE_ID + '-set';
+    st.textContent = `
+      #${SET_BTN_ID} {
+        position: fixed; right: 16px; bottom: 16px; z-index: 2147482000;
+        background: #fff; border: 1px solid #d9d9d9; border-radius: 999px; padding: 6px 12px;
+        font-size: 13px; color: #595959; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.12);
+        font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+      }
+      #${SET_BTN_ID}:hover { color: #fa541c; border-color: #fa541c; }
+      #${SET_BTN_ID}.dus-muted { color: #bfbfbf; }
+      #${SET_PANEL_ID} {
+        position: fixed; right: 16px; bottom: 56px; z-index: 2147482001; width: 320px;
+        background: #fff; border: 1px solid #d9d9d9; border-radius: 10px; padding: 14px 16px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.18); font-size: 14px; color: #262626;
+        font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+      }
+      #${SET_PANEL_ID} h4 { margin: 0 0 10px; font-size: 15px; }
+      #${SET_PANEL_ID} label { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+      #${SET_PANEL_ID} select, #${SET_PANEL_ID} input[type=range] { flex: 1; min-width: 0; }
+      #${SET_PANEL_ID} .dus-row { display: flex; gap: 8px; margin-top: 12px; }
+      #${SET_PANEL_ID} button {
+        flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid #d9d9d9; background: #fafafa; cursor: pointer;
+      }
+      #${SET_PANEL_ID} button.dus-primary { background: #fa541c; border-color: #fa541c; color: #fff; }
+      #${SET_PANEL_ID} .dus-hint { color: #8c8c8c; font-size: 12px; margin-top: 8px; }
+    `;
+    document.head.appendChild(st);
+  }
+  function ensureSettingsButton() {
+    let btn = document.getElementById(SET_BTN_ID);
+    if (!onRoute()) { if (btn) btn.style.display = 'none'; return; }
+    ensureSettingsStyle();
+    if (!btn) {
+      btn = document.createElement('div');
+      btn.id = SET_BTN_ID;
+      btn.title = '新掛號提醒：聲音設定';
+      btn.addEventListener('click', toggleSettingsPanel);
+      document.body.appendChild(btn);
+    }
+    btn.style.display = '';
+    const muted = !settings.chime && !settings.speak;
+    btn.textContent = muted ? '🔕 提醒設定（已靜音）' : '🔔 提醒設定';
+    btn.classList.toggle('dus-muted', muted);
+  }
+  function toggleSettingsPanel() {
+    const old = document.getElementById(SET_PANEL_ID);
+    if (old) { old.remove(); return; }
+    const p = document.createElement('div');
+    p.id = SET_PANEL_ID;
+    const voices = zhVoices();
+    const auto = pickVoice();
+    const opts = [`<option value="">自動（${auto ? esc(auto.name) : '無'}）</option>`]
+      .concat(voices.map((v) => `<option value="${esc(v.name)}"${v.name === settings.voice ? ' selected' : ''}>${esc(v.name)}</option>`)).join('');
+    p.innerHTML = `
+      <h4>🔔 新掛號提醒 聲音設定</h4>
+      <label><input type="checkbox" data-k="chime"${settings.chime ? ' checked' : ''}> 先播一聲「叮」</label>
+      <label><input type="checkbox" data-k="speak"${settings.speak ? ' checked' : ''}> 語音播報「○○醫師，○點○分預約病患抵達」</label>
+      <label>聲音 <select data-k="voice">${opts}</select></label>
+      <label>語速 <input type="range" data-k="rate" min="0.6" max="1.6" step="0.1" value="${settings.rate}"> <span data-v="rate">${settings.rate}</span></label>
+      <label>音量 <input type="range" data-k="volume" min="0.2" max="1" step="0.1" value="${settings.volume}"> <span data-v="volume">${settings.volume}</span></label>
+      <div class="dus-row"><button data-act="test">試聽</button><button data-act="close" class="dus-primary">完成</button></div>
+      <div class="dus-hint">設定只存在這台電腦。聲音清單是這台電腦的 Chrome 有的台灣國語聲音；Windows 想要更多聲音，到「設定 → 時間與語言 → 語言 → 中文(台灣) → 語音」安裝。</div>
+    `;
+    p.addEventListener('change', (ev) => {
+      const el = ev.target;
+      const k = el.dataset.k;
+      if (!k) return;
+      if (el.type === 'checkbox') settings[k] = el.checked;
+      else if (el.type === 'range') settings[k] = parseFloat(el.value);
+      else settings[k] = el.value;
+      saveSettings();
+      ensureSettingsButton();
+    });
+    p.addEventListener('input', (ev) => {
+      const el = ev.target;
+      if (el.type === 'range') { const sp = p.querySelector(`[data-v="${el.dataset.k}"]`); if (sp) sp.textContent = el.value; }
+    });
+    p.addEventListener('click', (ev) => {
+      const act = ev.target.dataset && ev.target.dataset.act;
+      if (act === 'close') { p.remove(); return; }
+      if (act === 'test') {
+        if (!settings.chime && !settings.speak) return;
+        playNow([{ doctor: '王大明', apptTime: '14:30' }]);
+      }
+    });
+    document.body.appendChild(p);
+  }
 
   function notify(rows) {
     ensureStyle();
@@ -309,6 +416,7 @@
 
   // ---------- 掃描 ----------
   function scan() {
+    ensureSettingsButton();
     if (!onRoute()) return;
     const found = findTable();
     if (!found) return;
