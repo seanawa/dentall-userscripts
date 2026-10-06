@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 就診列表 新掛號提醒
 // @namespace    htdayreportviewer
-// @version      1.2.1
+// @version      1.3.0
 // @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面中間下方跳出醒目的提醒方塊並播放提示音（列出序位、姓名、醫師、時間），該列標成黃色；點哪一位就只關掉那一位。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -132,6 +132,7 @@
         font-weight: 700; min-width: 2.2em; text-align: center;
       }
       #${BOX_ID} .dus-np-name { font-size: 22px; font-weight: 700; }
+      #${BOX_ID} .dus-np-doc  { font-size: 22px; font-weight: 700; color: #ad2102; }
       #${BOX_ID} .dus-np-meta { color: #595959; font-size: 16px; }
       #${BOX_ID} .dus-np-foot {
         font-size: 13px; color: #8c8c8c; text-align: center; padding: 0 0 8px;
@@ -240,12 +241,12 @@
       const li = document.createElement('li');
       if (r.key) li.dataset.key = r.key;
       const meta = [];
-      if (r.doctor) meta.push(`醫師 ${r.doctor}`);
       if (r.apptTime) meta.push(`預約 ${r.apptTime}`);
       if (r.regTime) meta.push(`掛號 ${r.regTime}`);
       li.innerHTML =
         `<span class="dus-np-seq">${esc(r.seq || '—')}</span>` +
         `<span class="dus-np-name">${esc(r.name)}</span>` +
+        (r.doctor ? `<span class="dus-np-doc">${esc(r.doctor)}</span>` : '') +
         `<span class="dus-np-meta">${esc(meta.join('　'))}</span>` +
         `<span class="dus-np-ok">✓</span>`;
       ul.appendChild(li);
