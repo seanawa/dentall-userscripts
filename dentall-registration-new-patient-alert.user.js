@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 就診列表 新掛號提醒
 // @namespace    htdayreportviewer
-// @version      1.5.0
+// @version      1.5.1
 // @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面中間下方跳出醒目的提醒方塊，並語音播報「○○醫師，○點○分預約病患抵達」（列出序位、姓名、醫師、時間），該列標成黃色；點哪一位就只關掉那一位。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -19,7 +19,7 @@
  *   2. 表格一有變化就比對，出現沒看過、而且門診處置不是「已完成」的列 → 顯示提醒方塊並把該列標黃。
  *   3. 第一次看到某一天的列表時只默默記下來，不提醒（避免一開畫面就跳一整排）。
  *      一次冒出超過 MAX_BURST 列也視為「整批載入」而不提醒（例如切換篩選）。
- *   4. 提醒方塊固定在畫面中間下方，先一聲短「叮」再語音播報「○○醫師，○點○分預約病患抵達」（右下角「🔔 提醒設定」可關閉、選聲音、調語速音量，設定存在這台電腦）；點某一位只關掉那一位，右上角 ✕ 全部關掉；期間再有新病患會累加在同一個方塊裡。
+ *   4. 提醒方塊固定在畫面中間下方，先一聲短「叮」再語音播報「○○醫師，○點○分預約病患抵達」（右下角「🔔 掛號提醒聲音」可關閉、選聲音、調語速音量，設定存在這台電腦）；點某一位只關掉那一位，右上角 ✕ 全部關掉；期間再有新病患會累加在同一個方塊裡。
  * 不碰任何資料、不呼叫 API。
  */
 (function () {
@@ -326,7 +326,7 @@
     }
     btn.style.display = '';
     const muted = !settings.chime && !settings.speak;
-    btn.textContent = muted ? '🔕 提醒設定（已靜音）' : '🔔 提醒設定';
+    btn.textContent = muted ? '🔕 掛號提醒聲音（已靜音）' : '🔔 掛號提醒聲音';
     btn.classList.toggle('dus-muted', muted);
   }
   function toggleSettingsPanel() {
