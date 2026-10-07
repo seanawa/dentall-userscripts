@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Dentall 就診列表 新掛號提醒
 // @namespace    htdayreportviewer
-// @version      1.7.0
-// @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面中間下方跳出醒目的提醒方塊，並語音播報「○○醫師，○點○分預約病患抵達」（列出序位、姓名、醫師、時間），該列標成黃色；點哪一位就只關掉那一位。就診列表分頁在背景（正在看別的分頁或視窗）時，另外送出 Chrome 桌面通知。
+// @version      1.8.0
+// @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面中間下方跳出醒目的提醒方塊，並語音播報「○○醫師，○點○分預約病患抵達」（列出序位、姓名、醫師、時間），該列標成黃色；點哪一位就只關掉那一位。就診列表分頁在背景（正在看別的分頁或視窗）時，另外送出 Chrome 桌面通知；並讓 Dentall 在分頁背景時仍持續更新列表，語音與通知才會在背景生效。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
 // @supportURL   https://github.com/seanawa/dentall-userscripts/issues
@@ -23,6 +23,10 @@
  *   5. 就診列表這個分頁不在前景（使用者正在看約診排程等其他分頁或視窗）時，提醒方塊看不到，所以另外送 Chrome 桌面通知；
  *      分頁在前景時只有方塊和聲音，不送桌面通知。第一次在就診列表點擊頁面時會詢問一次通知權限。
  *      注意：只在「就診列表固定開在一個分頁、其他操作在別的分頁」的用法下有效；在同一個分頁裡切到別的頁面，腳本就看不到列表、什麼都不會送。
+ *   6. Dentall 自己在分頁切到背景時會暫停重抓就診列表，表格不變、本腳本就什麼都偵測不到，4 和 5 都不會發生。
+ *      所以本腳本讓 Dentall 看到的 document.visibilityState 永遠是 visible、並擋掉 visibilitychange 事件，Dentall 就會照常更新；
+ *      本腳本自己判斷前景／背景時用保留下來的真實值。
+ *      Chrome 對背景分頁的計時器有節流（隱藏超過 5 分鐘後最多一分鐘跑一次），所以背景時提醒可能晚最多一分鐘。
  * 不碰任何資料、不呼叫 API。
  */
 (function () {
@@ -285,10 +289,45 @@
       if (document.getElementById(BOX_ID)) playNow(rows);
     }, { capture: true, passive: true }));
 
+  // ---------- 分頁在背景時也讓 Dentall 持續更新列表 ----------
+  // Dentall 在 document.hidden 時會暫停重抓就診列表。這裡接管 document.visibilityState／hidden／hasFocus，
+  // 在就診列表路由上一律回報「前景」，並在 window 捕獲階段擋掉真實的 visibilitychange 事件，Dentall 就不會知道分頁被切走。
+  // 本腳本自己要判斷真實前景／背景（桌面通知要不要送）時，用接管前保留的原始 getter。
+  const VIS_DESC = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
+  const HID_DESC = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
+  const realHasFocus = document.hasFocus.bind(document);
+  function realHidden() {
+    return VIS_DESC && VIS_DESC.get ? VIS_DESC.get.call(document) !== 'visible' : !!document.hidden;
+  }
+  function spoofing() { return onRoute(); }
+  function installKeepAlive() {
+    if (!VIS_DESC || !VIS_DESC.get || !HID_DESC || !HID_DESC.get) return;
+    try {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get() { return spoofing() ? 'visible' : VIS_DESC.get.call(this); } });
+      Object.defineProperty(document, 'hidden', { configurable: true, get() { return spoofing() ? false : HID_DESC.get.call(this); } });
+      document.hasFocus = function () { return spoofing() ? true : realHasFocus(); };
+    } catch (e) { console.warn(TAG, '無法接管 visibilityState，分頁在背景時 Dentall 可能不會更新列表', e); return; }
+    window.addEventListener('visibilitychange', (ev) => {
+      if (!ev.isTrusted) return;            // 本腳本自己補發的事件放行給 Dentall
+      if (!realHidden()) closeNotifs();     // 真的切回就診列表分頁：畫面上已有方塊，把桌面通知收掉
+      if (spoofing()) ev.stopImmediatePropagation(); // 不讓 Dentall 知道分頁切到背景
+    }, true);
+  }
+  // 腳本載入或切到就診列表時分頁已經在背景（例如用新分頁開啟就診列表）：Dentall 可能早就暫停了，
+  // 補發一次 visibilitychange 讓它重新讀 visibilityState（會讀到 visible）而恢復更新。
+  function wakeDentall() {
+    if (spoofing() && realHidden()) {
+      console.log(TAG, '分頁在背景，通知 Dentall 繼續更新列表');
+      document.dispatchEvent(new Event('visibilitychange', { bubbles: true }));
+    }
+  }
+  installKeepAlive();
+  wakeDentall();
+  window.addEventListener('hashchange', wakeDentall);
+
   // ---------- 桌面通知（就診列表分頁在背景時才送）----------
   // Chrome 規定要在使用者點過頁面後才能詢問通知權限，所以在就診列表上第一次點擊／按鍵時問一次。
   function notifSupported() { return 'Notification' in window; }
-  function tabHidden() { return document.visibilityState !== 'visible'; }
   function askNotifPermission() {
     if (!notifSupported() || Notification.permission !== 'default') return;
     try { Notification.requestPermission().then((p) => console.log(TAG, '桌面通知權限：', p)); } catch (_) { /* ignore */ }
@@ -302,7 +341,7 @@
   }
   function desktopNotify(rows) {
     if (!notifSupported() || Notification.permission !== 'granted') return;
-    if (!tabHidden()) return; // 分頁在前景：畫面上已有方塊和聲音，不重複
+    if (!realHidden()) return; // 分頁在前景：畫面上已有方塊和聲音，不重複
     const title = rows.length === 1 ? `🔔 新掛號：${rows[0].name}` : `🔔 新掛號病患（${rows.length}）`;
     const body = rows.map((r) => [r.seq || '—', r.name, r.doctor, r.apptTime ? `預約 ${r.apptTime}` : '臨時指定'].filter(Boolean).join('　')).join('\n');
     try {
@@ -314,8 +353,6 @@
       console.log(TAG, '分頁在背景，已送桌面通知', title);
     } catch (e) { console.warn(TAG, '桌面通知失敗', e); }
   }
-  // 切回就診列表分頁時，畫面上已有方塊，把桌面通知收掉
-  document.addEventListener('visibilitychange', () => { if (!tabHidden()) closeNotifs(); });
 
   // ---------- 設定面板 ----------
   const SET_BTN_ID = 'dus-np-settings-btn';
