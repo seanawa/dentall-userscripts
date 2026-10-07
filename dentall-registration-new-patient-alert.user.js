@@ -25,7 +25,7 @@
  *      注意：只在「就診列表固定開在一個分頁、其他操作在別的分頁」的用法下有效；在同一個分頁裡切到別的頁面，腳本就看不到列表、什麼都不會送。
  *   6. Dentall 自己在分頁切到背景時會暫停重抓就診列表，表格不變、本腳本就什麼都偵測不到，4 和 5 都不會發生。
  *      所以本腳本讓 Dentall 看到的 document.visibilityState 永遠是 visible、並擋掉 visibilitychange 事件，Dentall 就會照常更新；
- *      本腳本自己判斷前景／背景時用保留下來的真實值。設定面板可關閉。
+ *      本腳本自己判斷前景／背景時用保留下來的真實值。
  *      Chrome 對背景分頁的計時器有節流（隱藏超過 5 分鐘後最多一分鐘跑一次），所以背景時提醒可能晚最多一分鐘。
  * 不碰任何資料、不呼叫 API。
  */
@@ -185,7 +185,7 @@
 
   // ---------- 聲音設定（每台電腦各自存在 localStorage，右下角「🔔 提醒設定」可調）----------
   const SET_KEY = 'dentall-registration-alert-settings';
-  const DEFAULTS = { chime: true, speak: true, voice: '', rate: 1.0, volume: 1.0, background: true };
+  const DEFAULTS = { chime: true, speak: true, voice: '', rate: 1.0, volume: 1.0 };
   let settings = Object.assign({}, DEFAULTS, (() => { try { return JSON.parse(localStorage.getItem(SET_KEY) || '{}'); } catch (_) { return {}; } })());
   function saveSettings() { try { localStorage.setItem(SET_KEY, JSON.stringify(settings)); } catch (_) { /* ignore */ } }
 
@@ -299,7 +299,7 @@
   function realHidden() {
     return VIS_DESC && VIS_DESC.get ? VIS_DESC.get.call(document) !== 'visible' : !!document.hidden;
   }
-  function spoofing() { return !!settings.background && onRoute(); }
+  function spoofing() { return onRoute(); }
   function installKeepAlive() {
     if (!VIS_DESC || !VIS_DESC.get || !HID_DESC || !HID_DESC.get) return;
     try {
@@ -414,13 +414,12 @@
     const opts = [`<option value="">自動（${auto ? esc(auto.name) : '無'}）</option>`]
       .concat(voices.map((v) => `<option value="${esc(v.name)}"${v.name === settings.voice ? ' selected' : ''}>${esc(v.name)}</option>`)).join('');
     p.innerHTML = `
-      <h4>🔔 新掛號提醒 設定</h4>
+      <h4>🔔 新掛號提醒 聲音設定</h4>
       <label><input type="checkbox" data-k="chime"${settings.chime ? ' checked' : ''}> 先播一聲「叮」</label>
       <label><input type="checkbox" data-k="speak"${settings.speak ? ' checked' : ''}> 語音播報「○○醫師，○點○分預約病患抵達」</label>
       <label>聲音 <select data-k="voice">${opts}</select></label>
       <label>語速 <input type="range" data-k="rate" min="0.6" max="1.6" step="0.1" value="${settings.rate}"> <span data-v="rate">${settings.rate}</span></label>
       <label>音量 <input type="range" data-k="volume" min="0.2" max="1" step="0.1" value="${settings.volume}"> <span data-v="volume">${settings.volume}</span></label>
-      <label><input type="checkbox" data-k="background"${settings.background ? ' checked' : ''}> 分頁在背景時也讓 Dentall 持續更新列表（語音、桌面通知才會在背景生效）</label>
       <div class="dus-row"><button data-act="test">試聽</button><button data-act="close" class="dus-primary">完成</button></div>
       <div class="dus-hint">設定只存在這台電腦。聲音清單是這台電腦的 Chrome 有的台灣國語聲音；Windows 想要更多聲音，到「設定 → 時間與語言 → 語言 → 中文(台灣) → 語音」安裝。</div>
     `;
