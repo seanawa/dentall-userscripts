@@ -4,29 +4,26 @@
 
 | 腳本 | 說明 | 安裝 |
 |---|---|---|
-| `dentall-treatment-report-viewer.user.js` | 「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js) |
+| `dentall-treatment-report-viewer.user.js` | 「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel | — |
 | `dentall-registration-sort-memory.user.js` | 「就診列表」記住上次點選的排序欄位與方向，回到畫面自動套用 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js) |
 | `dentall-registration-new-patient-alert.user.js` | 「就診列表」出現新掛號病患時，畫面下方跳出醒目提醒方塊、語音播報「○○醫師，○點○分預約病患抵達」並把該列標黃，點哪一位就關掉那一位；就診列表分頁在背景時另外送 Chrome 桌面通知 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js) |
-| `dentall-nhi-receipt-confirm-form.user.js` | 列印健保看診收據時，接著自動列印一張 A5 的「全民健保牙醫門診醫療服務北區 醫療確認單」，姓名、就醫日期、院所名稱/代號自動帶入 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js) |
+| `dentall-receipt-next-appt.user.js` | 列印「健保批價單」時，在收據底部置中加印病患未來最多兩筆預約（民國日期＋星期＋時間）；沒有未來預約則收據維持原樣 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js) |
+| `dentall-nhi-receipt-confirm-form.user.js` | 列印「健保批價單」時，在同一份 PDF 後面加一頁 A5 的「全民健保牙醫門診醫療服務北區 醫療確認單」，一次列印一起印出；姓名、就醫日期、院所代號自動帶入 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js) |
 
----
+## 安裝
 
-## Dentall 治療項目統計 線上瀏覽
-
-讓 [his.dentall.io](https://his.dentall.io) 的「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel。
-
-### 診所電腦安裝清單
+### 診所電腦安裝清單（逐步打勾）
 
 逐步打勾的安裝清單（含所有連結）：**https://seanawa.github.io/dentall-userscripts/**
 
-### 一鍵安裝
+### 步驟
 
 1. Chrome 安裝 [Tampermonkey](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) 擴充功能。
 2. **開啟「允許使用者指令碼」**（新版 Chrome 必做，否則腳本不會執行）：
    - 網址列輸入 `chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo` 按 Enter
    - 找到「允許使用者指令碼」(Allow User Scripts) 那一列，把開關打開
    - 舊版 Chrome 沒有這個選項的話，改在 `chrome://extensions` 右上角開啟「開發人員模式」
-3. 點這個連結：**[安裝腳本](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js)**，在跳出的 Tampermonkey 畫面按「安裝」。
+3. 點上表「安裝」欄的連結（要裝幾支就點幾個），在跳出的 Tampermonkey 畫面按「安裝」。
 4. **完全關閉 Chrome 再重新打開**（Windows 請確認工作列隱藏圖示裡沒有殘留的 Chrome；Mac 按 Cmd+Q）。
 5. 登入 Dentall，重新整理頁面。
 
@@ -34,6 +31,12 @@
 > 若圖示彈窗上方出現藍色橫幅「請啟用『允許使用者腳本』」，代表第 2 步還沒做。
 
 之後腳本有更新，Tampermonkey 會自動抓取，不需要重裝。
+
+---
+
+## Dentall 治療項目統計 線上瀏覽
+
+讓 [his.dentall.io](https://his.dentall.io) 的「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel。
 
 ### 使用方式
 
@@ -104,41 +107,92 @@
 
 ---
 
-## Dentall 健保收據 附印醫療確認單
+## Dentall 健保批價單 加印下次預約
 
-在 Dentall 列印**健保看診收據**時，收據印完會接著自動印一張 **A5** 的「全民健保牙醫門診醫療服務北區『醫療確認單』」。
-版面照健保署北區業務組的原表（A4）縮成 A5 橫式（原表註明可縮小使用），表格下方的「註」不印。
+列印「健保批價單」時，在收據底部（註記 3 下方）置中、粗體加印病患未來最多兩筆預約：
 
-**自動帶入**：姓名、就醫日期、院所名稱/代號從當次那張收據上讀出來，直接印在確認單上。處置內容與簽名仍留白手寫。
+```
+下次預約：115/10/15（四）14:30　／　115/10/29（四）10:00
+```
 
-- 腳本找收據上「姓名」「就醫日期／就診日期」「醫事機構名稱／代號」這類標籤，取同一格冒號後面、右邊一格或正下方一格的值。
-- 收據上找不到院所名稱或代號時，改印選單裡設定的「院所名稱/代號」。找不到姓名或日期時，那一格留白手寫。
-- 用選單手動補印時，若 30 分鐘內印過收據，會再帶入那張收據的姓名與日期；超過 30 分鐘則留白。
+- 民國年 / 星期 / 時間，不印醫師
+- 排除已取消 (`CANCEL`)、過去的、以及本次看診那一筆預約
+- 沒有未來預約時收據維持原樣
+- 任何一步失敗（找不到病患、API 錯誤、字型載入失敗…）都退回原樣列印，不會卡住櫃台
+- 只在處置單頁（`#/pd/…`）且 PDF 為 A5 橫向時作用，不影響處方箋、診斷書等其他列印
 
 ### 使用方式
 
-裝好就會自動運作。收據和確認單是**兩個分開的列印工作**：會先跳出收據的列印對話框，按「列印」後再跳出確認單的對話框（已預設 A5），再按一次「列印」。
-若診所 Chrome 是用 `--kiosk-printing` 啟動（不跳對話框直接印），兩張都會直接送到印表機。
+**先排好下次預約，再列印批價單**。列印預覽底部就會看到那行字；第一次列印會多花一兩秒下載字型，之後有快取。
 
-點 Dentall 頁面上的 Tampermonkey 圖示，選單裡有：
+### 調整外觀
+
+都在檔案開頭的 `CFG`（改完記得把 `@version` 加一號，裝了的電腦才會自動更新）：
+
+| 參數 | 預設 | 說明 |
+|---|---|---|
+| `fontSize` | 13 | 字體大小 (pt) |
+| `bold` / `boldWidth` | true / 0.45 | 模擬粗體（TW-Sung 沒有粗體字檔，用填色＋描邊）；描邊越寬越粗 |
+| `yTop` | 372 | 距頁面頂端 (pt)，越大越往下 |
+| `align` / `x` | center / 28.4 | 置中；改 `left` 則從 `x` 開始 |
+| `maxItems` | 2 | 最多印幾筆 |
+| `mode` | live | 改成 `diag` 只記錄不改 PDF，用來除錯 |
+
+### 除錯
+
+F12 → Console 篩選 `dentall-next-appt`。正常一次列印會看到 `pdf … registration … appointments status 200 … next … modified pdf bytes`。
+若出現 `error, fallback to original`，代表那次是原樣列印，訊息後面是原因。
+
+### 原理
+
+Dentall 的批價單是前端用 `@react-pdf/renderer` 產生 PDF blob，塞進 `<iframe title="pdf-print-view">` 後呼叫 `print()`。
+腳本攔截該 iframe 的 `src` 設定，用 [pdf-lib](https://pdf-lib.js.org/) 在 PDF 上加字（嵌入收據同款 TW-Sung 字型的 subset，PDF 只多約 5 KB），再把改好的 PDF 交回給 iframe，Dentall 原本的列印流程不動。
+
+- 病患 id 取自 Dentall 的 Redux store（`procedureDocumentPageReducer.pd.patient.id`）；腳本若比 Dentall 晚載入沒攔到 store，會改從 React 元件樹找。
+- 預約透過 Dentall 自己的 API `GET /htdc/api/appointments?patientId.equals=<id>&size=1000` 取得，auth header 直接複製 Dentall 自己的請求，腳本內沒有任何帳號、token 或病患資料。
+- Dentall 改版若動到列印流程或 API，腳本會退回原樣列印，需再對照新版調整。
+
+`docs/receipt-layout-mock.png` 是版面示意，`docs/receipt-test-output.png` 是最終渲染結果。
+
+---
+
+## Dentall 健保收據 附印醫療確認單
+
+列印「健保批價單」（健保看診收據）時，在同一份 PDF 後面加一頁 **A5 橫式**的「全民健保牙醫門診醫療服務北區『醫療確認單』」。
+收據和確認單是**同一個列印工作**：只跳一次列印對話框，同一台印表機、同一種 A5 紙，按一次「列印」兩張都出來。
+版面照健保署北區業務組的原表縮成 A5 橫式（原表註明可縮小使用），表格下方的「註」不印。
+
+**自動帶入**：處置內容與簽名仍留白手寫，其他欄位如下。
+
+| 欄位 | 來源 |
+|---|---|
+| 姓名 | 批價單上的「病患姓名」；讀不到時改用 Dentall 處置單頁的病患資料 |
+| 就醫日期 | 批價單上的「就診日期」；讀不到時改用掛號／預約日期 |
+| 院所代號 | 批價單上的「院所代號」；讀不到時改用選單設定 |
+| 院所名稱 | 批價單上沒有院所名稱，**請在選單設定一次** |
+
+### 使用方式
+
+1. 裝好後，在 Dentall 頁面點 Tampermonkey 圖示 →「院所名稱/代號」，輸入診所名稱（例如 `泓泰牙醫診所`）。每台電腦設定一次。
+2. 之後照平常在處置單按列印 →「健保批價單」，列印預覽就會看到第 2 頁的確認單。第一次列印會多花一兩秒下載函式庫，之後有快取。
+
+Tampermonkey 選單：
 
 | 選單 | 作用 |
 |---|---|
-| 🖨 列印醫療確認單（A5） | 隨時手動印一張 |
-| 健保收據列印時自動附印：開／關 | 不想自動附印的電腦可以關掉 |
-| 院所名稱/代號（收據上找不到時使用） | 收據上讀不到院所名稱或代號時，改印這段文字 |
+| 🖨 列印醫療確認單（A5） | 單獨印一張確認單；30 分鐘內印過批價單的話會帶入那張的姓名與日期 |
+| 健保收據列印時自動附印：開／關 | 不想附印的電腦可以關掉 |
+| 院所名稱/代號 | 印在確認單「院所名稱/代號」欄；收據上讀得到代號時以收據為準 |
 | 每次張數 | 預設 1；原表為一式二聯，可設 2 |
-| 紙張：A5 橫式／直式 | 預設橫式（版面最大）；直式會把整張表縮小放在上半頁 |
-| 最近的列印偵測紀錄 | 列出最近 10 次列印的來源、是否判定為健保收據、出現哪些關鍵字、四個欄位各有沒有帶入 |
+| 最近的處理紀錄 | 最近 10 次的處理結果，以及四個欄位各從哪裡帶入 |
 
 設定存在那台電腦的瀏覽器（localStorage），每台電腦各自設定。
 
-### 原理與限制
+### 原理
 
-- 腳本接管頁面上所有的 `print()`（主頁面、iframe、`window.open` 開的列印視窗）。被列印的文件同時出現「收據」和「健保／部分負擔／就醫序號／健保卡」字樣，就判定為健保看診收據。
-- 收據的列印對話框關閉後，腳本用一個看不到的 iframe 印確認單，紙張由確認單自己指定 A5，不影響收據原本的紙張設定。
-- **若收據印完沒有接著印確認單**：打開選單的「最近的列印偵測紀錄」看一下。
-  - 有判定為健保收據，但某一欄顯示 ✗：代表收據上那一欄的標籤寫法不同。把那張收據上的欄位名稱告訴維護者即可調整。
-  - 沒有任何紀錄：代表 Dentall 的收據不是用瀏覽器的 `print()` 印（例如直接下載 PDF 或透過本機列印程式），腳本需要調整。先用選單的「列印醫療確認單」手動印。
-  - 有紀錄但「不是健保收據」：把那一行出現的字樣告訴維護者，調整判斷字樣即可。
-- 讀到的姓名與日期只用在當次列印，只留在頁面記憶體裡，不寫進 localStorage。偵測紀錄只記來源、固定關鍵字與各欄是否帶入，不記病患資料。腳本不呼叫 API。
+和「加印下次預約」一樣攔截 `<iframe title="pdf-print-view">` 的 `src`，兩支可以同時裝，載入順序不拘：批價單第一頁加下次預約，後面加確認單。
+
+- 第一頁不是 A5 橫式，或文字裡沒有「健保」和「收據」，就原樣列印，不影響處方箋、診斷書等其他列印。
+- 用 [pdf.js](https://mozilla.github.io/pdf.js/) 讀批價單第一頁的文字找欄位，用 [pdf-lib](https://pdf-lib.js.org/) 畫確認單。字型是收據同款 TW-Sung，只嵌入用到的字。函式庫第一次使用時從 cdnjs／jsdelivr 載入。
+- 任何一步失敗（函式庫或字型載不到、PDF 讀不了…）都原樣列印收據，不會卡住櫃台。原因會記在「最近的處理紀錄」，F12 → Console 篩選 `confirm-form` 也看得到。
+- 讀到的姓名與日期只用在當次列印，只留在頁面記憶體，不寫進 localStorage。處理紀錄不記病患資料。腳本不呼叫 Dentall API。
