@@ -7,6 +7,7 @@
 | `dentall-treatment-report-viewer.user.js` | 「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js) |
 | `dentall-registration-sort-memory.user.js` | 「就診列表」記住上次點選的排序欄位與方向，回到畫面自動套用 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js) |
 | `dentall-registration-new-patient-alert.user.js` | 「就診列表」出現新掛號病患時，畫面下方跳出醒目提醒方塊、語音播報「○○醫師，○點○分預約病患抵達」並把該列標黃，點哪一位就關掉那一位；就診列表分頁在背景時另外送 Chrome 桌面通知 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js) |
+| `dentall-nhi-receipt-confirm-form.user.js` | 列印健保看診收據時，接著自動列印一張 A5 的「全民健保牙醫門診醫療服務北區 醫療確認單」 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js) |
 
 ---
 
@@ -100,3 +101,37 @@
 - **預約時間空白**的新列：若同一位病患（病歷號相同）今天已經有另一筆掛號，整筆忽略，不顯示也不唸；若是今天第一筆，提醒方塊標「臨時指定」，語音唸「**○○醫師，有臨時指定病患**」。
 - 門診處置已是「已完成」的列不提醒；一次冒出超過 10 列（例如切換篩選）視為整批載入，也不提醒。
 - 不碰任何資料、不呼叫 API，只是觀察表格的變化。
+
+---
+
+## Dentall 健保收據 附印醫療確認單
+
+在 Dentall 列印**健保看診收據**時，收據印完會接著自動印一張 **A5** 的「全民健保牙醫門診醫療服務北區『醫療確認單』」。
+版面照健保署北區業務組的原表（A4）等比縮成 A5 橫式，原表註明「此表可影印縮小使用」。姓名、就醫日期、處置內容、簽名都留白手寫。
+
+### 使用方式
+
+裝好就會自動運作。收據和確認單是**兩個分開的列印工作**：會先跳出收據的列印對話框，按「列印」後再跳出確認單的對話框（已預設 A5），再按一次「列印」。
+若診所 Chrome 是用 `--kiosk-printing` 啟動（不跳對話框直接印），兩張都會直接送到印表機。
+
+點 Dentall 頁面上的 Tampermonkey 圖示，選單裡有：
+
+| 選單 | 作用 |
+|---|---|
+| 🖨 列印醫療確認單（A5） | 隨時手動印一張 |
+| 健保收據列印時自動附印：開／關 | 不想自動附印的電腦可以關掉 |
+| 院所名稱/代號 | 設定後會印在確認單「院所名稱/代號」欄，留空則空白手寫 |
+| 每次張數 | 預設 1；原表為一式二聯，可設 2 |
+| 紙張：A5 橫式／直式 | 預設橫式（版面最大）；直式會把整張表縮小放在上半頁 |
+| 最近的列印偵測紀錄 | 列出最近 10 次列印的來源、是否判定為健保收據、出現哪些關鍵字 |
+
+設定存在那台電腦的瀏覽器（localStorage），每台電腦各自設定。
+
+### 原理與限制
+
+- 腳本接管頁面上所有的 `print()`（主頁面、iframe、`window.open` 開的列印視窗）。被列印的文件同時出現「收據」和「健保／部分負擔／就醫序號／健保卡」字樣，就判定為健保看診收據。
+- 收據的列印對話框關閉後，腳本用一個看不到的 iframe 印確認單，紙張由確認單自己指定 A5，不影響收據原本的紙張設定。
+- **若收據印完沒有接著印確認單**：打開選單的「最近的列印偵測紀錄」看一下。
+  - 沒有任何紀錄：代表 Dentall 的收據不是用瀏覽器的 `print()` 印（例如直接下載 PDF 或透過本機列印程式），腳本需要調整。先用選單的「列印醫療確認單」手動印。
+  - 有紀錄但「不是健保收據」：把那一行出現的字樣告訴維護者，調整判斷字樣即可。
+- 偵測紀錄只記來源與命中的固定關鍵字，不記任何病患資料。腳本不呼叫 API。
