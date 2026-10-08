@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Dentall 健保收據 附印醫療確認單
 // @namespace    htdayreportviewer
-// @version      1.0.0
-// @description  his.dentall.io 列印健保看診收據時，接著自動列印一張 A5 的「全民健保牙醫門診醫療服務北區 醫療確認單」。Tampermonkey 選單可手動列印、開關自動附印、設定院所名稱/代號、張數與紙張方向。
+// @version      1.1.0
+// @description  his.dentall.io 列印健保看診收據時，接著自動列印一張 A5 的「全民健保牙醫門診醫療服務北區 醫療確認單」，姓名、就醫日期、院所名稱/代號從收據自動帶入。Tampermonkey 選單可手動列印、開關自動附印、設定院所名稱/代號、張數與紙張方向。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
 // @supportURL   https://github.com/seanawa/dentall-userscripts/issues
@@ -23,10 +23,15 @@
  *   3. 收據的列印對話框關閉（或自動列印完成）後，再用一個看不到的 iframe 印一張 A5 的醫療確認單。
  *      兩份是分開的列印工作，收據原本的紙張設定不受影響；確認單自己指定 A5。
  *      若 Chrome 以 --kiosk-printing 啟動（不跳對話框直接印），兩份都會直接送出。
- *   4. Tampermonkey 圖示的選單可以：手動列印確認單、開關自動附印、設定院所名稱/代號（印在確認單上）、
- *      每次張數（一式二聯可設 2）、A5 橫式／直式、查看最近幾次的列印偵測紀錄（只記來源與命中的關鍵字，不記病患資料）。
+ *   4. 姓名、就醫日期、院所名稱/代號從那張收據的文字自動帶入：找「姓名」「就醫日期／就診日期」
+ *      「醫事機構名稱／代號」這類標籤旁邊（同一格、右邊一格或正下方一格）的值。
+ *      收據上找不到院所名稱/代號時，改用選單裡設定的文字。處置內容與簽名仍留白手寫。
+ *      姓名與日期只用在當次列印、只留在記憶體，不寫進 localStorage；
+ *      手動補印（選單）時，30 分鐘內印過的最後一張收據的資料會再帶入一次。
+ *   5. Tampermonkey 圖示的選單可以：手動列印確認單、開關自動附印、設定院所名稱/代號（收據上找不到時使用）、
+ *      每次張數（一式二聯可設 2）、A5 橫式／直式、查看最近幾次的列印偵測紀錄（只記來源、命中的關鍵字與各欄是否帶入，不記病患資料）。
  * 設定存在這台電腦的瀏覽器（localStorage），每台電腦各自設定。
- * 不碰病患資料、不呼叫 API。確認單上的姓名、就醫日期、處置內容都留白手寫。
+ * 不呼叫 API。
  */
 (function loader() {
   'use strict';
@@ -47,7 +52,9 @@
     const RECEIPT_RE = /收據/;
     const NHI_RE = /健保|部分負擔|部份負擔|就醫序號|健保卡/;
     // 偵測紀錄只記這些字有沒有出現，不記任何病患資料
-    const VOCAB = ['收據', '健保', '部分負擔', '部份負擔', '就醫序號', '掛號費', '自費', '處方', '藥袋', '明細', '醫療確認單'];
+    const VOCAB = ['收據', '健保', '部分負擔', '部份負擔', '就醫序號', '掛號費', '自費', '處方', '藥袋', '明細', '醫療確認單',
+      '姓名', '就醫日期', '就診日期', '看診日期', '日期', '醫事機構', '院所', '代號', '代碼', '診所'];
+    const MANUAL_REUSE_MS = 30 * 60 * 1000; // 手動補印時，帶入多久以內的上一張收據資料
     const SELF_TITLE = '牙醫門診醫療確認單';
     const DEDUPE_MS = 5000;    // 同一次收據列印被多個掛勾同時抓到時只附印一次
     const WAIT_MAX_MS = 120000; // 非阻塞列印時，最多等這麼久的 afterprint
@@ -100,12 +107,15 @@
           const text = docText(win);
           const hit = isReceipt(text);
           const s = settings();
+          let info = null;
+          if (hit) { try { info = extractInfo(win.document); } catch (e) { console.warn(TAG, '讀取收據資料失敗', e); } }
           record({
             t: new Date().toLocaleString('zh-TW', { hour12: false }),
             source,
             receipt: hit,
             auto: s.auto,
             words: VOCAB.filter((w) => text.includes(w)),
+            found: info ? { name: !!info.name, date: !!info.date, clinic: !!info.clinicName, code: !!info.clinicCode } : null,
           });
           const want = hit && s.auto;
           let after = false;
@@ -116,13 +126,13 @@
           } finally {
             // Chrome 的 print() 通常會等對話框關閉才返回；返回得很慢就代表對話框已經關了
             const blocked = Date.now() - t0 > 300;
-            if (want) afterReceipt(win, () => after || blocked);
+            if (want) afterReceipt(win, () => after || blocked, info);
           }
         };
       } catch (_) { /* 跨網域視窗，不處理 */ }
     }
 
-    function afterReceipt(win, isDone) {
+    function afterReceipt(win, isDone, info) {
       const T = topWin();
       const now = Date.now();
       if (now - (T.__dusConfirmLast || 0) < DEDUPE_MS) return;
@@ -132,7 +142,7 @@
         let gone = false;
         try { gone = win.closed; } catch (_) { gone = true; }
         if (isDone() || gone || Date.now() - start > WAIT_MAX_MS) {
-          setTimeout(() => printForm('auto'), 500);
+          setTimeout(() => printForm('auto', info), 500);
           return;
         }
         setTimeout(wait, 300);
@@ -181,10 +191,16 @@
     };
 
     // ---------- 列印醫療確認單 ----------
-    function printForm(reason) {
+    function printForm(reason, info) {
       const T = topWin();
       const d = T.document;
       if (!d.body) return;
+      if (info) {
+        T.__dusConfirmLastInfo = { info, at: Date.now() };
+      } else if (reason === 'manual') {
+        const last = T.__dusConfirmLastInfo;
+        if (last && Date.now() - last.at < MANUAL_REUSE_MS) info = last.info;
+      }
       const f = d.createElement('iframe');
       f.setAttribute(OUR_ATTR, reason);
       f.setAttribute('aria-hidden', 'true');
@@ -202,13 +218,132 @@
         fw.focus();
         fw.print();
       });
-      f.srcdoc = buildHtml(settings());
+      f.srcdoc = buildHtml(settings(), info);
       d.body.appendChild(f);
     }
 
     if (W === topWin()) {
       document.addEventListener(EVT, () => printForm('manual'));
-      W.__dusConfirmForm = { print: () => printForm('manual'), html: () => buildHtml(settings()) };
+      W.__dusConfirmForm = {
+        print: () => printForm('manual'),
+        html: (info) => buildHtml(settings(), info),
+        extract: (doc) => extractInfo(doc || document),
+      };
+    }
+
+    // ---------- 從收據讀出姓名、就醫日期、院所名稱/代號 ----------
+    // 把文件轉成「行 × 格」：區塊元素換行、表格儲存格以 \t 分隔。不依賴畫面是否有渲染。
+    const BLOCK_TAGS = new Set(['DIV', 'P', 'TR', 'LI', 'UL', 'OL', 'TABLE', 'TBODY', 'THEAD', 'TFOOT', 'CAPTION',
+      'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER', 'MAIN', 'BR', 'HR', 'DL', 'DT', 'DD', 'FORM', 'FIELDSET', 'LEGEND']);
+    const CELL_TAGS = new Set(['TD', 'TH']);
+    const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'HEAD']);
+
+    function docLines(doc) {
+      let out = '';
+      (function walk(n) {
+        if (n.nodeType === 3) { out += n.nodeValue; return; }
+        if (n.nodeType !== 1 && n.nodeType !== 9 && n.nodeType !== 11) return;
+        const tag = n.tagName;
+        if (tag && SKIP_TAGS.has(tag)) return;
+        if (tag && (tag === 'INPUT' || tag === 'TEXTAREA')) { out += n.value || ''; return; }
+        if (tag && BLOCK_TAGS.has(tag)) out += '\n';
+        for (let c = n.firstChild; c; c = c.nextSibling) walk(c);
+        if (tag && CELL_TAGS.has(tag)) out += '\t';
+        if (tag && BLOCK_TAGS.has(tag)) out += '\n';
+      })(doc.body || doc);
+      return out.replace(/\u00a0|\u3000/g, ' ').split('\n')
+        .map((l) => l.split('\t').map((c) => c.replace(/[ \r\f\v]+/g, ' ').trim()))
+        .map((cells) => { while (cells.length > 1 && cells[cells.length - 1] === '') cells.pop(); return cells; })
+        .filter((cells) => cells.some((c) => c));
+    }
+
+    // 標籤 → 值：同一格標籤後面的文字 → 右邊第一個非空格 → 下一行同一欄
+    // 標籤正規式不可含捕捉群組。check(value) 回傳整理好的值或 null。
+    function findLabeled(lines, labelRe, check, badBefore) {
+      const re = new RegExp(labelRe.source + '\\s*[:：]?\\s*(.*)$');
+      for (let i = 0; i < lines.length; i++) {
+        const cells = lines[i];
+        for (let j = 0; j < cells.length; j++) {
+          const m = cells[j].match(re);
+          if (!m) continue;
+          const before = cells[j].slice(0, m.index);
+          if (badBefore && badBefore.test(before)) continue;
+          const candidates = [m[1]];
+          const right = cells.slice(j + 1).find((c) => c);
+          if (!m[1] && right !== undefined) candidates.push(right);
+          if (!m[1] && lines[i + 1] && lines[i + 1][j]) candidates.push(lines[i + 1][j]);
+          for (const c of candidates) {
+            const v = c && check(c);
+            if (v) return v;
+          }
+        }
+      }
+      return '';
+    }
+
+    const OTHER_LABELS = /(病歷|性別|身分|身份|生日|出生|年齡|電話|卡號|就醫|就診|看診|日期|號碼|序號|地址|醫師|科別|身\s*分\s*證|ID)/;
+    function checkName(v) {
+      let t = v.split(/\s+/)[0] || '';
+      const k = t.search(OTHER_LABELS);
+      if (k === 0) return null;
+      if (k > 0) t = t.slice(0, k);
+      t = t.replace(/[:：,，;；、()（）]+$/, '');
+      if (t.length < 2 || t.length > 12) return null;
+      if (!/^[\u4e00-\u9fffA-Za-z○〇Ｏ＊*·．.\-]+$/.test(t)) return null;
+      return t;
+    }
+    const DATE_RE = /(\d{2,4})\s*([\/.\-年])\s*(\d{1,2})\s*[\/.\-月]\s*(\d{1,2})\s*日?/;
+    function checkDate(v) {
+      const m = v.match(DATE_RE);
+      if (m) {
+        const y = +m[1], mo = +m[3], d = +m[4];
+        if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+        if (!(y >= 50 && y <= 200) && !(y >= 1960 && y <= 2100)) return null;
+        return m[0].replace(/\s+/g, '');
+      }
+      const c = v.match(/(?:^|\D)(1\d{2})(\d{2})(\d{2})(?:\D|$)/); // 民國 7 碼：1151008
+      if (c && +c[2] >= 1 && +c[2] <= 12 && +c[3] >= 1 && +c[3] <= 31) return `${c[1]}/${c[2]}/${c[3]}`;
+      return null;
+    }
+    const CLINIC_RE = /(?![本貴該])[\u4e00-\u9fff]{2,20}?(?:牙醫診所|牙科診所|牙醫醫院|醫院|診所)/;
+    function checkClinicName(v) {
+      const m = v.match(CLINIC_RE);
+      return m ? m[0] : null;
+    }
+    function checkCode(v) {
+      const m = v.match(/(?:^|\D)(\d{10})(?:\D|$)/);
+      return m ? m[1] : null;
+    }
+
+    function extractInfo(doc) {
+      const lines = docLines(doc);
+      const name = findLabeled(lines, /(?:病患|病人|患者|就醫者|保險對象)?姓\s*名/, checkName, /(醫師|醫生|負責人|經手人|收費員|操作員)\s*$/);
+      const date = findLabeled(lines, /(?:就醫|就診|看診|門診|診療|治療)日期/, checkDate)
+        || findLabeled(lines, /(?:收費|交易|收據|列印)?日期/, checkDate, /(出生|生)\s*$/);
+      const clinicCode = findLabeled(lines, /(?:醫事機構|醫療院所|院所|機構|醫事|診所)(?:代號|代碼|編號)/, checkCode);
+      let clinicName = findLabeled(lines, /(?:醫事機構|醫療院所|院所|機構|診所)名稱/, checkClinicName);
+      if (!clinicName) {
+        // 沒有標籤時，取最前面出現的「○○診所／醫院」（通常是收據抬頭）
+        for (const cells of lines) {
+          for (const c of cells) {
+            if (/名稱/.test(c)) continue;
+            // 以空白、標點切開，只認「從一段開頭起算」的名稱，避免把前面的句子一起抓進來
+            for (const seg of c.split(/[\s,，、:：;；|｜()（）\[\]【】「」]+/)) {
+              const m = seg.match(CLINIC_RE);
+              if (m && m.index === 0) { clinicName = m[0]; break; }
+            }
+            if (clinicName) break;
+          }
+          if (clinicName) break;
+        }
+      }
+      // 代號沒有標籤時，找和院所名稱同一行的 10 碼數字，例如「○○牙醫診所（3501234567）」
+      let code = clinicCode;
+      if (!code && clinicName) {
+        const line = lines.find((cells) => cells.some((c) => c.replace(/\s+/g, '').includes(clinicName)));
+        if (line) code = checkCode(line.join(' ')) || '';
+      }
+      return { name, date, clinicName, clinicCode: code };
     }
 
     // ---------- 確認單版面（依原 A4 表格等比縮成 A5） ----------
@@ -216,10 +351,16 @@
       return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
-    function buildHtml(s) {
+    function buildHtml(s, info) {
+      info = info || {};
       const portrait = s.orientation === 'portrait';
       const copies = Math.min(4, Math.max(1, parseInt(s.copies, 10) || 1));
-      const clinic = esc((s.clinic || '').trim());
+      // 院所名稱/代號：收據上名稱與代號都有就用收據的；缺一樣時，有手動設定就用設定；都沒有就印找到的那部分
+      const found = [info.clinicName, info.clinicCode].filter(Boolean);
+      const manual = (s.clinic || '').trim();
+      const clinic = found.length === 2 || !manual ? found.map(esc).join('<br>') : esc(manual);
+      const name = esc(info.name || '');
+      const date = esc(info.date || '');
       const items = ['銀粉/複合體充填', '樹脂/玻璃離子體充填', '牙周治療或洗牙', '根管治療', '拔牙'];
       const rows = items.map((n) =>
         `<span>${n}</span><i></i><span>顆部位</span><i></i><span>起迄看診時間</span><i></i>`).join('') +
@@ -232,7 +373,7 @@
     <table class="left">
       <colgroup><col style="width:9mm"><col><col style="width:19mm"><col style="width:38mm"></colgroup>
       <tr class="hd"><td colspan="4">牙醫門診醫療確認單</td></tr>
-      <tr class="nm"><td class="lab">姓名</td><td></td><td class="lab b u">就醫日期</td><td></td></tr>
+      <tr class="nm"><td class="lab">姓名</td><td class="val">${name}</td><td class="lab b u">就醫日期</td><td class="val">${date}</td></tr>
       <tr class="tx">
         <td class="vert">處<br>置<br>內<br>容<br>明<br>細</td>
         <td colspan="3"><div class="grid">${rows}</div></td>
@@ -247,7 +388,6 @@
       <div class="box doc"></div>
     </div>
   </div>
-  <div class="note">註：本確認單為協助健保署查證醫療處置完整完成之用途。一式二聯，一聯由院所實貼於病歷當次治療紀錄、一聯交由病人確認，請診所使用中文填寫內容，此確認單已視為病歷內容一部份，其他仍依<b>管控辦法</b>作業相關規定進行申報與抽審（此表可影印縮小使用）。</div>
 </section>`;
       return `<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><title>醫療確認單</title><style>
 @page { size: A5 ${portrait ? 'portrait' : 'landscape'}; margin: ${portrait ? '8mm 7mm' : '7mm 9mm'}; }
@@ -257,7 +397,7 @@ body { font-family: "PMingLiU", "新細明體", "MingLiU", "細明體", "Noto Se
   font-size: 9.5pt; line-height: 1.3; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .sheet { width: 192mm; break-inside: avoid; ${portrait ? 'zoom: 0.698;' : ''} }
 .sheet + .sheet { break-before: page; }
-.title { text-align: center; font-weight: bold; font-size: 14pt; line-height: 1.45; margin: 1mm 0 3mm; letter-spacing: .05em; }
+.title { text-align: center; font-weight: bold; font-size: 14pt; line-height: 1.45; margin: 1mm 0 4mm; letter-spacing: .05em; }
 .frame { display: grid; grid-template-columns: 1fr 50mm; border: .8pt solid #000; }
 .left { width: 100%; height: 100%; border-collapse: collapse; table-layout: fixed; }
 .left td { border: .6pt solid #000; padding: 1mm 1.5mm; vertical-align: middle; }
@@ -265,25 +405,25 @@ body { font-family: "PMingLiU", "新細明體", "MingLiU", "細明體", "Noto Se
 .left tr:last-child td { border-bottom: 0; }
 .left td:first-child { border-left: 0; }
 .left td:last-child { border-right: 0; }
-.hd td { text-align: center; font-weight: bold; height: 8mm; letter-spacing: .1em; }
-.nm td { height: 9.5mm; }
+.hd td { text-align: center; font-weight: bold; height: 9mm; letter-spacing: .1em; }
+.nm td { height: 11mm; }
 .lab { text-align: center; font-size: 10pt; white-space: nowrap; }
+.val { font-size: 11.5pt; padding-left: 2.5mm !important; white-space: nowrap; overflow: hidden; }
 .b { font-weight: bold; }
 .u { text-decoration: underline; }
 .vert { text-align: center; font-size: 10pt; line-height: 1.5; padding: 1mm 0 !important; }
 .grid { display: grid; grid-template-columns: max-content 11mm max-content 21mm max-content 1fr; column-gap: 1mm; }
-.grid > * { height: 8.6mm; display: flex; align-items: flex-end; padding-bottom: .9mm; white-space: nowrap; }
+.grid > * { height: 10mm; display: flex; align-items: flex-end; padding-bottom: .9mm; white-space: nowrap; }
 .grid > i { padding: 0; border-bottom: .6pt solid #000; }
 .grid > .span3 { grid-column: span 3; }
 .grid > .hint { grid-column: 1 / -1; text-decoration: underline; height: 6.4mm; }
-.ct td { line-height: 1.65; padding: 1.2mm 1.5mm; }
+.ct td { line-height: 1.85; padding: 1.2mm 1.5mm; }
 .right { border-left: .8pt solid #000; display: flex; flex-direction: column; }
 .sig { flex: 5 1 0; padding: 1.2mm 1.5mm; font-weight: bold; font-size: 8.6pt; line-height: 1.45; text-align: justify; }
 .lbl { flex: none; height: 7mm; border-top: .8pt solid #000; border-bottom: .8pt solid #000; display: flex; align-items: center; justify-content: center;
   font-size: 10.5pt; font-family: "Microsoft JhengHei", "微軟正黑體", "Noto Sans CJK TC", "PingFang TC", sans-serif; }
 .box { flex: 3 1 0; padding: 1.5mm; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 10pt; }
 .box.doc { flex: 3.4 1 0; }
-.note { margin-top: 2.5mm; font-size: 8.6pt; line-height: 1.6; padding-left: 2em; text-indent: -2em; text-align: justify; }
 </style></head><body>${Array(copies).fill(sheet).join('')}</body></html>`;
     }
   }
@@ -324,8 +464,8 @@ body { font-family: "PMingLiU", "新細明體", "MingLiU", "細明體", "Noto Se
     add(`健保收據列印時自動附印：${s.auto ? '✅ 開' : '⛔ 關'}（點一下切換）`, () => {
       s.auto = !s.auto; save(s); menu();
     });
-    add(`院所名稱/代號：${s.clinic || '（空白，手寫）'}`, () => {
-      const v = prompt('印在確認單「院所名稱/代號」欄的文字（留空 = 空白手寫）', s.clinic);
+    add(`院所名稱/代號（收據上找不到時使用）：${s.clinic || '未設定'}`, () => {
+      const v = prompt('收據上找不到院所名稱/代號時，改印這段文字（例如：泓泰牙醫診所 3501234567）。留空 = 找不到就空白', s.clinic);
       if (v === null) return;
       s.clinic = v.trim(); save(s); menu();
     });
@@ -344,7 +484,8 @@ body { font-family: "PMingLiU", "新細明體", "MingLiU", "細明體", "Noto Se
       try { list = JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch (_) { /* ignore */ }
       if (!list.length) { alert('這台電腦還沒有偵測到任何列印。\n請先在 Dentall 列印一次收據再來看。'); return; }
       alert('最近的列印（新 → 舊）\n\n' + list.map((e) =>
-        `${e.t}  來源：${e.source}  ${e.receipt ? '✅ 判定為健保收據' : '— 不是健保收據'}${e.receipt && !e.auto ? '（自動附印已關）' : ''}\n    出現字樣：${(e.words || []).join('、') || '（無）'}`
+        `${e.t}  來源：${e.source}  ${e.receipt ? '✅ 判定為健保收據' : '— 不是健保收據'}${e.receipt && !e.auto ? '（自動附印已關）' : ''}\n    出現字樣：${(e.words || []).join('、') || '（無）'}` +
+        (e.found ? `\n    自動帶入：姓名${e.found.name ? '✓' : '✗'} 就醫日期${e.found.date ? '✓' : '✗'} 院所名稱${e.found.clinic ? '✓' : '✗'} 院所代號${e.found.code ? '✓' : '✗'}` : '')
       ).join('\n'));
     });
   }

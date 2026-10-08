@@ -7,7 +7,7 @@
 | `dentall-treatment-report-viewer.user.js` | 「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js) |
 | `dentall-registration-sort-memory.user.js` | 「就診列表」記住上次點選的排序欄位與方向，回到畫面自動套用 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js) |
 | `dentall-registration-new-patient-alert.user.js` | 「就診列表」出現新掛號病患時，畫面下方跳出醒目提醒方塊、語音播報「○○醫師，○點○分預約病患抵達」並把該列標黃，點哪一位就關掉那一位；就診列表分頁在背景時另外送 Chrome 桌面通知 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js) |
-| `dentall-nhi-receipt-confirm-form.user.js` | 列印健保看診收據時，接著自動列印一張 A5 的「全民健保牙醫門診醫療服務北區 醫療確認單」 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js) |
+| `dentall-nhi-receipt-confirm-form.user.js` | 列印健保看診收據時，接著自動列印一張 A5 的「全民健保牙醫門診醫療服務北區 醫療確認單」，姓名、就醫日期、院所名稱/代號自動帶入 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js) |
 
 ---
 
@@ -107,7 +107,13 @@
 ## Dentall 健保收據 附印醫療確認單
 
 在 Dentall 列印**健保看診收據**時，收據印完會接著自動印一張 **A5** 的「全民健保牙醫門診醫療服務北區『醫療確認單』」。
-版面照健保署北區業務組的原表（A4）等比縮成 A5 橫式，原表註明「此表可影印縮小使用」。姓名、就醫日期、處置內容、簽名都留白手寫。
+版面照健保署北區業務組的原表（A4）縮成 A5 橫式（原表註明可縮小使用），表格下方的「註」不印。
+
+**自動帶入**：姓名、就醫日期、院所名稱/代號從當次那張收據上讀出來，直接印在確認單上。處置內容與簽名仍留白手寫。
+
+- 腳本找收據上「姓名」「就醫日期／就診日期」「醫事機構名稱／代號」這類標籤，取同一格冒號後面、右邊一格或正下方一格的值。
+- 收據上找不到院所名稱或代號時，改印選單裡設定的「院所名稱/代號」。找不到姓名或日期時，那一格留白手寫。
+- 用選單手動補印時，若 30 分鐘內印過收據，會再帶入那張收據的姓名與日期；超過 30 分鐘則留白。
 
 ### 使用方式
 
@@ -120,10 +126,10 @@
 |---|---|
 | 🖨 列印醫療確認單（A5） | 隨時手動印一張 |
 | 健保收據列印時自動附印：開／關 | 不想自動附印的電腦可以關掉 |
-| 院所名稱/代號 | 設定後會印在確認單「院所名稱/代號」欄，留空則空白手寫 |
+| 院所名稱/代號（收據上找不到時使用） | 收據上讀不到院所名稱或代號時，改印這段文字 |
 | 每次張數 | 預設 1；原表為一式二聯，可設 2 |
 | 紙張：A5 橫式／直式 | 預設橫式（版面最大）；直式會把整張表縮小放在上半頁 |
-| 最近的列印偵測紀錄 | 列出最近 10 次列印的來源、是否判定為健保收據、出現哪些關鍵字 |
+| 最近的列印偵測紀錄 | 列出最近 10 次列印的來源、是否判定為健保收據、出現哪些關鍵字、四個欄位各有沒有帶入 |
 
 設定存在那台電腦的瀏覽器（localStorage），每台電腦各自設定。
 
@@ -132,6 +138,7 @@
 - 腳本接管頁面上所有的 `print()`（主頁面、iframe、`window.open` 開的列印視窗）。被列印的文件同時出現「收據」和「健保／部分負擔／就醫序號／健保卡」字樣，就判定為健保看診收據。
 - 收據的列印對話框關閉後，腳本用一個看不到的 iframe 印確認單，紙張由確認單自己指定 A5，不影響收據原本的紙張設定。
 - **若收據印完沒有接著印確認單**：打開選單的「最近的列印偵測紀錄」看一下。
+  - 有判定為健保收據，但某一欄顯示 ✗：代表收據上那一欄的標籤寫法不同。把那張收據上的欄位名稱告訴維護者即可調整。
   - 沒有任何紀錄：代表 Dentall 的收據不是用瀏覽器的 `print()` 印（例如直接下載 PDF 或透過本機列印程式），腳本需要調整。先用選單的「列印醫療確認單」手動印。
   - 有紀錄但「不是健保收據」：把那一行出現的字樣告訴維護者，調整判斷字樣即可。
-- 偵測紀錄只記來源與命中的固定關鍵字，不記任何病患資料。腳本不呼叫 API。
+- 讀到的姓名與日期只用在當次列印，只留在頁面記憶體裡，不寫進 localStorage。偵測紀錄只記來源、固定關鍵字與各欄是否帶入，不記病患資料。腳本不呼叫 API。
