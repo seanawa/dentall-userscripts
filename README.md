@@ -8,6 +8,7 @@
 | `dentall-registration-sort-memory.user.js` | 「就診列表」記住上次點選的排序欄位與方向，回到畫面自動套用 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js) |
 | `dentall-registration-new-patient-alert.user.js` | 「就診列表」出現新掛號病患時，畫面下方跳出醒目提醒方塊、語音播報「○○醫師，○點○分預約病患抵達」並把該列標黃，點哪一位就關掉那一位；就診列表分頁在背景時另外送 Chrome 桌面通知 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js) |
 | `dentall-receipt-next-appt.user.js` | 列印「健保批價單」時，在收據底部置中加印病患未來最多兩筆預約（民國日期＋星期＋時間）；沒有未來預約則收據維持原樣 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js) |
+| `dentall-nhi-receipt-confirm-form.user.js` | 列印「健保批價單」時，在同一份 PDF 後面加一頁 A5 的「全民健保牙醫門診醫療服務北區 醫療確認單」，一次列印一起印出；姓名、就醫日期、院所代號自動帶入 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js) |
 
 ## 安裝
 
@@ -152,3 +153,46 @@ Dentall 的批價單是前端用 `@react-pdf/renderer` 產生 PDF blob，塞進 
 - Dentall 改版若動到列印流程或 API，腳本會退回原樣列印，需再對照新版調整。
 
 `docs/receipt-layout-mock.png` 是版面示意，`docs/receipt-test-output.png` 是最終渲染結果。
+
+---
+
+## Dentall 健保收據 附印醫療確認單
+
+列印「健保批價單」（健保看診收據）時，在同一份 PDF 後面加一頁 **A5 橫式**的「全民健保牙醫門診醫療服務北區『醫療確認單』」。
+收據和確認單是**同一個列印工作**：只跳一次列印對話框，同一台印表機、同一種 A5 紙，按一次「列印」兩張都出來。
+版面照健保署北區業務組的原表縮成 A5 橫式（原表註明可縮小使用），表格下方的「註」不印。
+
+**自動帶入**：處置內容與簽名仍留白手寫，其他欄位如下。
+
+| 欄位 | 來源 |
+|---|---|
+| 姓名 | 批價單上的「病患姓名」；讀不到時改用 Dentall 處置單頁的病患資料 |
+| 就醫日期 | 批價單上的「就診日期」；讀不到時改用掛號／預約日期 |
+| 院所代號 | 批價單上的「院所代號」；讀不到時改用選單設定 |
+| 院所名稱 | 批價單上沒有院所名稱，**請在選單設定一次** |
+
+### 使用方式
+
+1. 裝好後，在 Dentall 頁面點 Tampermonkey 圖示 →「院所名稱/代號」，輸入診所名稱（例如 `泓泰牙醫診所`）。每台電腦設定一次。
+2. 之後照平常在處置單按列印 →「健保批價單」，列印預覽就會看到第 2 頁的確認單。第一次列印會多花一兩秒下載函式庫，之後有快取。
+
+Tampermonkey 選單：
+
+| 選單 | 作用 |
+|---|---|
+| 🖨 列印醫療確認單（A5） | 單獨印一張確認單；30 分鐘內印過批價單的話會帶入那張的姓名與日期 |
+| 健保收據列印時自動附印：開／關 | 不想附印的電腦可以關掉 |
+| 院所名稱/代號 | 印在確認單「院所名稱/代號」欄；收據上讀得到代號時以收據為準 |
+| 每次張數 | 預設 1；原表為一式二聯，可設 2 |
+| 最近的處理紀錄 | 最近 10 次的處理結果，以及四個欄位各從哪裡帶入 |
+
+設定存在那台電腦的瀏覽器（localStorage），每台電腦各自設定。
+
+### 原理
+
+和「加印下次預約」一樣攔截 `<iframe title="pdf-print-view">` 的 `src`，兩支可以同時裝，載入順序不拘：批價單第一頁加下次預約，後面加確認單。
+
+- 第一頁不是 A5 橫式，或文字裡沒有「健保」和「收據」，就原樣列印，不影響處方箋、診斷書等其他列印。
+- 用 [pdf.js](https://mozilla.github.io/pdf.js/) 讀批價單第一頁的文字找欄位，用 [pdf-lib](https://pdf-lib.js.org/) 畫確認單。字型是收據同款 TW-Sung，只嵌入用到的字。函式庫第一次使用時從 cdnjs／jsdelivr 載入。
+- 任何一步失敗（函式庫或字型載不到、PDF 讀不了…）都原樣列印收據，不會卡住櫃台。原因會記在「最近的處理紀錄」，F12 → Console 篩選 `confirm-form` 也看得到。
+- 讀到的姓名與日期只用在當次列印，只留在頁面記憶體，不寫進 localStorage。處理紀錄不記病患資料。腳本不呼叫 Dentall API。
