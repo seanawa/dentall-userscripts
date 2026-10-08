@@ -8,7 +8,7 @@
 | `dentall-registration-sort-memory.user.js` | 「就診列表」記住上次點選的排序欄位與方向，回到畫面自動套用 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js) |
 | `dentall-registration-new-patient-alert.user.js` | 「就診列表」出現新掛號病患時，畫面下方跳出醒目提醒方塊、語音播報「○○醫師，○點○分預約病患抵達」並把該列標黃，點哪一位就關掉那一位；就診列表分頁在背景時另外送 Chrome 桌面通知 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js) |
 | `dentall-receipt-next-appt.user.js` | 列印「健保批價單」時，在收據底部置中加印病患未來最多兩筆預約（民國日期＋星期＋時間）；沒有未來預約則收據維持原樣 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js) |
-| `dentall-nhi-receipt-confirm-form.user.js` | 列印「健保批價單」時，在同一份 PDF 後面加一頁 A5 的「全民健保牙醫門診醫療服務北區 醫療確認單」，一次列印一起印出；姓名、就醫日期、院所代號自動帶入 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js) |
+| `dentall-nhi-receipt-confirm-form.user.js` | 列印「健保批價單」時，在同一份 PDF 後面加一頁 A5 的「全民健保牙醫門診醫療服務北區 醫療確認單」，一次列印一起印出；姓名、就醫日期、院所名稱/代號自動帶入 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js) |
 
 ## 安裝
 
@@ -168,13 +168,12 @@ Dentall 的批價單是前端用 `@react-pdf/renderer` 產生 PDF blob，塞進 
 |---|---|
 | 姓名 | 批價單上的「病患姓名」；讀不到時改用 Dentall 處置單頁的病患資料 |
 | 就醫日期 | 批價單上的「就診日期」；讀不到時改用掛號／預約日期 |
-| 院所代號 | 批價單上的「院所代號」；讀不到時改用選單設定 |
-| 院所名稱 | 批價單上沒有院所名稱，**請在選單設定一次** |
+| 院所名稱 | 批價單抬頭的院所名稱；讀不到時改用選單設定 |
+| 院所代號 | 批價單最下面那行（代號／電話／地址）的 10 碼代號；讀不到時改用 Dentall 診所設定，再不行用選單設定 |
 
 ### 使用方式
 
-1. 裝好後，在 Dentall 頁面點 Tampermonkey 圖示 →「院所名稱/代號」，輸入診所名稱（例如 `泓泰牙醫診所`）。每台電腦設定一次。
-2. 之後照平常在處置單按列印 →「健保批價單」，列印預覽就會看到第 2 頁的確認單。第一次列印會多花一兩秒下載函式庫，之後有快取。
+1. 照平常在處置單按列印 →「健保批價單」，列印預覽就會看到第 2 頁的確認單。第一次列印會多花一兩秒下載函式庫，之後有快取。
 
 Tampermonkey 選單：
 
@@ -182,7 +181,7 @@ Tampermonkey 選單：
 |---|---|
 | 🖨 列印醫療確認單（A5） | 單獨印一張確認單；30 分鐘內印過批價單的話會帶入那張的姓名與日期 |
 | 健保收據列印時自動附印：開／關 | 不想附印的電腦可以關掉 |
-| 院所名稱/代號 | 印在確認單「院所名稱/代號」欄；收據上讀得到代號時以收據為準 |
+| 院所名稱/代號 | 備用：批價單和 Dentall 設定都讀不到時才用，平常不必設定 |
 | 每次張數 | 預設 1；原表為一式二聯，可設 2 |
 | 最近的處理紀錄 | 最近 10 次的處理結果，以及四個欄位各從哪裡帶入 |
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 健保收據 附印醫療確認單
 // @namespace    htdayreportviewer
-// @version      2.0.2
+// @version      2.0.3
 // @description  his.dentall.io 列印「健保批價單」（健保看診收據）時，在同一份 PDF 後面加一頁 A5 的「全民健保牙醫門診醫療服務北區 醫療確認單」，一次列印就一起印出；姓名、就醫日期、院所名稱/代號自動帶入。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -19,7 +19,7 @@
  *   1. 把程式以 <script> 注入頁面主世界，攔截那個 iframe 的 src 設定（和「健保批價單 加印下次預約」同一招，兩支可以同時裝，順序不拘）。
  *   2. 拿到 PDF 後：第一頁不是 A5 橫式就原樣放行；用 pdf.js 讀出第一頁的文字，確認是健保收據（批價單的標題與欄位名稱是底圖讀不到，只看填入的值裡有沒有「健保」字樣）。
  *   3. 從收據文字找「病患姓名」「就診日期」「院所代號」旁邊的值；讀不到時，姓名／日期改從 Dentall 的 Redux store 取，
- *      院所名稱/代號改用選單設定的文字（批價單上沒有院所名稱，名稱一定要在選單設定一次）。
+ *      院所名稱取收據抬頭、院所代號取收據最下面那行的 10 碼（再不行用 Dentall 設定）；都讀不到時才用選單設定的文字。
  *   4. 用 pdf-lib 在同一份 PDF 後面畫上 A5 橫式的醫療確認單（字型用收據同款 TW-Sung，只嵌入用到的字），
  *      再把新的 PDF 交回 iframe，Dentall 原本的列印流程不動：一次列印、同一台印表機、同一種紙。
  *   5. 任何一步失敗（函式庫或字型載不到、PDF 讀不了…）都原樣列印收據，不會卡住櫃台。
@@ -170,7 +170,7 @@
         name: fromPdf.name || fromStore.name || '',
         date: fromPdf.date || fromStore.date || '',
         clinicName: fromPdf.clinicName || '',
-        clinicCode: fromPdf.clinicCode || '',
+        clinicCode: fromPdf.clinicCode || fromStore.clinicCode || '',
       };
       W.__dusConfirmLastInfo = { info, at: Date.now() };
 
@@ -184,7 +184,7 @@
           name: info.name ? (fromPdf.name ? '收據' : 'store') : '',
           date: info.date ? (fromPdf.date ? '收據' : 'store') : '',
           clinic: filled.name ? (info.clinicName ? '收據' : '設定') : '',
-          code: filled.code ? (info.clinicCode ? '收據' : '設定') : '',
+          code: filled.code ? (fromPdf.clinicCode ? '收據' : info.clinicCode ? 'store' : '設定') : '',
         },
       });
       return URL.createObjectURL(new Blob([out], { type: 'application/pdf' }));
@@ -308,6 +308,11 @@
         const line = lines.find((cells) => cells.some((c) => c.replace(/\s+/g, '').includes(clinicName)));
         if (line) clinicCode = checkCode(line.join(' ')) || '';
       }
+      if (!clinicCode) {
+        // Dentall 批價單沒有欄位名稱，院所代號（10 碼）印在最下面「代號 | 電話 | 地址」那一行
+        const line = lines.find((cells) => cells.some((c) => /[縣市].*[區鄉鎮市].*[路街道巷號]/.test(c)));
+        if (line) clinicCode = line.map((c) => (/^\s*\d{10}\s*$/.test(c) ? c.trim() : '')).find(Boolean) || '';
+      }
       return { name, date, clinicName, clinicCode };
     }
 
@@ -337,6 +342,11 @@
       const p = (n) => String(n).padStart(2, '0');
       return (d.getFullYear() - 1911) + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate());
     }
+    function storeClinicCode(st) {
+      const pick = (...path) => path.reduce((o, k) => (o == null ? o : o[k]), st);
+      return pick('homePageReducer', 'settings', 'settings', 'preferences', 'generalSetting', 'clinicCode')
+        || pick('settingPageReducer', 'basicInfo', 'clinicCode') || '';
+    }
     function storeInfo() {
       try {
         const store = findStore();
@@ -347,6 +357,7 @@
         return {
           name: (pd.patient && pd.patient.name && checkName(pd.patient.name)) || '',
           date: rocDate(reg.arrivalTime) || rocDate(appt.expectedArrivalTime),
+          clinicCode: checkCode(storeClinicCode(st)) || '',
         };
       } catch (_) { return {}; }
     }
@@ -545,8 +556,8 @@
     add(`健保收據列印時自動附印：${s.auto ? '✅ 開' : '⛔ 關'}（點一下切換）`, () => {
       s.auto = !s.auto; save(s); menu();
     });
-    add(`院所名稱/代號：${s.clinic || '⚠ 未設定'}`, () => {
-      const v = prompt('印在確認單「院所名稱/代號」欄。批價單上沒有院所名稱，請在這裡輸入名稱（代號可一起輸入，收據上讀得到代號時以收據為準）。\n例如：泓泰牙醫診所 3501234567', s.clinic);
+    add(`院所名稱/代號（收據讀不到時才用）：${s.clinic || '未設定'}`, () => {
+      const v = prompt('院所名稱和代號平常會從批價單自動讀取，這裡只在讀不到時使用，可以留空。\n例如：泓泰牙醫診所 3501234567', s.clinic);
       if (v === null) return;
       s.clinic = v.trim(); save(s); menu();
     });
