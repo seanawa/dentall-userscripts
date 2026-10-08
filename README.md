@@ -4,28 +4,25 @@
 
 | 腳本 | 說明 | 安裝 |
 |---|---|---|
-| `dentall-treatment-report-viewer.user.js` | 「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js) |
+| `dentall-treatment-report-viewer.user.js` | 「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel | — |
 | `dentall-registration-sort-memory.user.js` | 「就診列表」記住上次點選的排序欄位與方向，回到畫面自動套用 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js) |
 | `dentall-registration-new-patient-alert.user.js` | 「就診列表」出現新掛號病患時，畫面下方跳出醒目提醒方塊、語音播報「○○醫師，○點○分預約病患抵達」並把該列標黃，點哪一位就關掉那一位；就診列表分頁在背景時另外送 Chrome 桌面通知 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js) |
+| `dentall-receipt-next-appt.user.js` | 列印「健保批價單」時，在收據底部置中加印病患未來最多兩筆預約（民國日期＋星期＋時間）；沒有未來預約則收據維持原樣 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js) |
 
----
+## 安裝
 
-## Dentall 治療項目統計 線上瀏覽
-
-讓 [his.dentall.io](https://his.dentall.io) 的「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel。
-
-### 診所電腦安裝清單
+### 診所電腦安裝清單（逐步打勾）
 
 逐步打勾的安裝清單（含所有連結）：**https://seanawa.github.io/dentall-userscripts/**
 
-### 一鍵安裝
+### 步驟
 
 1. Chrome 安裝 [Tampermonkey](https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) 擴充功能。
 2. **開啟「允許使用者指令碼」**（新版 Chrome 必做，否則腳本不會執行）：
    - 網址列輸入 `chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo` 按 Enter
    - 找到「允許使用者指令碼」(Allow User Scripts) 那一列，把開關打開
    - 舊版 Chrome 沒有這個選項的話，改在 `chrome://extensions` 右上角開啟「開發人員模式」
-3. 點這個連結：**[安裝腳本](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js)**，在跳出的 Tampermonkey 畫面按「安裝」。
+3. 點上表「安裝」欄的連結（要裝幾支就點幾個），在跳出的 Tampermonkey 畫面按「安裝」。
 4. **完全關閉 Chrome 再重新打開**（Windows 請確認工作列隱藏圖示裡沒有殘留的 Chrome；Mac 按 Cmd+Q）。
 5. 登入 Dentall，重新整理頁面。
 
@@ -33,6 +30,12 @@
 > 若圖示彈窗上方出現藍色橫幅「請啟用『允許使用者腳本』」，代表第 2 步還沒做。
 
 之後腳本有更新，Tampermonkey 會自動抓取，不需要重裝。
+
+---
+
+## Dentall 治療項目統計 線上瀏覽
+
+讓 [his.dentall.io](https://his.dentall.io) 的「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel。
 
 ### 使用方式
 
@@ -100,3 +103,52 @@
 - **預約時間空白**的新列：若同一位病患（病歷號相同）今天已經有另一筆掛號，整筆忽略，不顯示也不唸；若是今天第一筆，提醒方塊標「臨時指定」，語音唸「**○○醫師，有臨時指定病患**」。
 - 門診處置已是「已完成」的列不提醒；一次冒出超過 10 列（例如切換篩選）視為整批載入，也不提醒。
 - 不碰任何資料、不呼叫 API，只是觀察表格的變化。
+
+---
+
+## Dentall 健保批價單 加印下次預約
+
+列印「健保批價單」時，在收據底部（註記 3 下方）置中、粗體加印病患未來最多兩筆預約：
+
+```
+下次預約：115/10/15（四）14:30　／　115/10/29（四）10:00
+```
+
+- 民國年 / 星期 / 時間，不印醫師
+- 排除已取消 (`CANCEL`)、過去的、以及本次看診那一筆預約
+- 沒有未來預約時收據維持原樣
+- 任何一步失敗（找不到病患、API 錯誤、字型載入失敗…）都退回原樣列印，不會卡住櫃台
+- 只在處置單頁（`#/pd/…`）且 PDF 為 A5 橫向時作用，不影響處方箋、診斷書等其他列印
+
+### 使用方式
+
+**先排好下次預約，再列印批價單**。列印預覽底部就會看到那行字；第一次列印會多花一兩秒下載字型，之後有快取。
+
+### 調整外觀
+
+都在檔案開頭的 `CFG`（改完記得把 `@version` 加一號，裝了的電腦才會自動更新）：
+
+| 參數 | 預設 | 說明 |
+|---|---|---|
+| `fontSize` | 13 | 字體大小 (pt) |
+| `bold` / `boldWidth` | true / 0.45 | 模擬粗體（TW-Sung 沒有粗體字檔，用填色＋描邊）；描邊越寬越粗 |
+| `yTop` | 372 | 距頁面頂端 (pt)，越大越往下 |
+| `align` / `x` | center / 28.4 | 置中；改 `left` 則從 `x` 開始 |
+| `maxItems` | 2 | 最多印幾筆 |
+| `mode` | live | 改成 `diag` 只記錄不改 PDF，用來除錯 |
+
+### 除錯
+
+F12 → Console 篩選 `dentall-next-appt`。正常一次列印會看到 `pdf … registration … appointments status 200 … next … modified pdf bytes`。
+若出現 `error, fallback to original`，代表那次是原樣列印，訊息後面是原因。
+
+### 原理
+
+Dentall 的批價單是前端用 `@react-pdf/renderer` 產生 PDF blob，塞進 `<iframe title="pdf-print-view">` 後呼叫 `print()`。
+腳本攔截該 iframe 的 `src` 設定，用 [pdf-lib](https://pdf-lib.js.org/) 在 PDF 上加字（嵌入收據同款 TW-Sung 字型的 subset，PDF 只多約 5 KB），再把改好的 PDF 交回給 iframe，Dentall 原本的列印流程不動。
+
+- 病患 id 取自 Dentall 的 Redux store（`procedureDocumentPageReducer.pd.patient.id`）；腳本若比 Dentall 晚載入沒攔到 store，會改從 React 元件樹找。
+- 預約透過 Dentall 自己的 API `GET /htdc/api/appointments?patientId.equals=<id>&size=1000` 取得，auth header 直接複製 Dentall 自己的請求，腳本內沒有任何帳號、token 或病患資料。
+- Dentall 改版若動到列印流程或 API，腳本會退回原樣列印，需再對照新版調整。
+
+`docs/receipt-layout-mock.png` 是版面示意，`docs/receipt-test-output.png` 是最終渲染結果。

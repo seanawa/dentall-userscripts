@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dentall 腳本 安裝清單</title>
-<meta name="description" content="泓泰牙醫診所公用電腦：安裝「治療項目統計 線上瀏覽」腳本的逐步檢查清單">
+<meta name="description" content="泓泰牙醫診所公用電腦：安裝 Dentall 腳本的逐步檢查清單">
 <style>
   :root{
     --bg:#f6f7f9; --card:#fff; --text:#1f2328; --muted:#656d76; --line:#d0d7de;
@@ -97,9 +97,9 @@
     <div class="body">
       <h2>3. 安裝腳本</h2>
       <p>點下面按鈕，會跳出 Tampermonkey 的安裝畫面，按「安裝」。</p>
-      <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js" target="_blank" rel="noopener">安裝「Dentall 治療項目統計 線上瀏覽」</a>
       <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js" target="_blank" rel="noopener">安裝「Dentall 就診列表 記住排序」</a>
       <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js" target="_blank" rel="noopener">安裝「Dentall 就診列表 新掛號提醒」</a>
+      <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js" target="_blank" rel="noopener">安裝「Dentall 健保批價單 加印下次預約」</a>
       <p>三支都裝；每一支都會各自跳出安裝畫面，各按一次「安裝」。</p>
       <div class="note">如果點了只看到一整頁文字，沒有安裝畫面，代表步驟 1 或 2 沒完成。回去補做後再點一次。</div>
     </div>
@@ -125,7 +125,7 @@
       <p>登入後，在 Dentall 頁面點工具列的 Tampermonkey 圖示，應該看到：</p>
       <ol class="sub-steps">
         <li>圖示右下角有數字 <b>3</b>（等於已安裝的腳本數）。</li>
-        <li>清單裡有「Dentall 治療項目統計 線上瀏覽」「Dentall 就診列表 記住排序」「Dentall 就診列表 新掛號提醒」，開關都是綠色。</li>
+        <li>清單裡有「Dentall 就診列表 記住排序」「Dentall 就診列表 新掛號提醒」「Dentall 健保批價單 加印下次預約」，開關都是綠色。</li>
         <li>彈窗最上方<b>沒有</b>藍色橫幅寫「請啟用『允許使用者腳本』」。有的話回步驟 2。</li>
       </ol>
     </div>
@@ -136,12 +136,11 @@
     <div class="body">
       <h2>6. 實際測試一次</h2>
       <ol class="sub-steps">
-        <li>Dentall 上方選單「分析報表」→「治療項目統計」。</li>
-        <li>日期選昨天，處置項目選「全部代碼」，按「匯出 EXCEL」。</li>
-        <li>右側出現新的一筆，等「製作中」變成「下載報表」後點它。</li>
+        <li>在「就診列表」點一位<b>已經排好下次預約</b>的病患，進入處置單（網址有 <code>#/pd/</code>）。</li>
+        <li>按列印圖示 →「健保批價單」。</li>
       </ol>
-      <div class="ok">成功：畫面直接跳出統計表，有「統計（項目 × 醫師）」「統計（醫師 × 項目）」「明細」三個分頁，沒有下載任何檔案。</div>
-      <div class="note">失敗：還是下載了 Excel。先按 <kbd>F5</kbd> 重新整理 Dentall 頁面再試一次，仍不行就回到步驟 5 檢查。</div>
+      <div class="ok">成功：列印預覽的收據底部（註記 3 下方）出現置中粗體的「下次預約：115/10/15（四）14:30」這類文字。可以直接取消不印。</div>
+      <div class="note">失敗：底部沒有那行字。先按 <kbd>F5</kbd> 重新整理 Dentall 頁面再試一次；病患若沒有未來預約本來就不會印，請換一位有預約的病患測。仍不行就回到步驟 5 檢查。</div>
     </div>
   </div>
 
@@ -153,9 +152,9 @@
       <tr><td>這份清單</td><td><a href="https://seanawa.github.io/dentall-userscripts/">seanawa.github.io/dentall-userscripts</a></td></tr>
       <tr><td>Tampermonkey 商店頁</td><td><a href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">chromewebstore.google.com/detail/tampermonkey/…</a></td></tr>
       <tr><td>Tampermonkey 設定頁（貼到網址列）</td><td><code>chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo</code></td></tr>
-      <tr><td>安裝：治療項目統計 線上瀏覽</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js</a></td></tr>
       <tr><td>安裝：就診列表 記住排序</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js</a></td></tr>
       <tr><td>安裝：就診列表 新掛號提醒</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js</a></td></tr>
+      <tr><td>安裝：健保批價單 加印下次預約</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js</a></td></tr>
       <tr><td>Dentall HIS</td><td><a href="https://his.dentall.io/htdc/" target="_blank" rel="noopener">his.dentall.io/htdc</a></td></tr>
       <tr><td>程式碼與說明（GitHub）</td><td><a href="https://github.com/seanawa/dentall-userscripts" target="_blank" rel="noopener">github.com/seanawa/dentall-userscripts</a></td></tr>
     </table>
@@ -167,7 +166,6 @@
       <tr><td>點安裝連結只看到文字</td><td>Tampermonkey 沒裝，或步驟 2 的開關沒開。</td></tr>
       <tr><td>Tampermonkey 圖示沒有數字 3</td><td>不在 Dentall 頁面、腳本開關被關掉、或步驟 2 沒開。</td></tr>
       <tr><td>有藍色橫幅「請啟用允許使用者腳本」</td><td>步驟 2 沒開。開完要重新整理 Dentall 頁面。</td></tr>
-      <tr><td>想要 Excel 檔</td><td>報表視窗右上角有「下載 Excel」按鈕，功能和原本一樣。</td></tr>
       <tr><td>腳本以後怎麼更新</td><td>不用動。Tampermonkey 每天會自動檢查 GitHub 上的新版。</td></tr>
     </table>
   </div>
