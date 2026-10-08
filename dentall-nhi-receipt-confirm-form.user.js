@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 健保收據 附印醫療確認單
 // @namespace    htdayreportviewer
-// @version      2.0.0
+// @version      2.0.1
 // @description  his.dentall.io 列印「健保批價單」（健保看診收據）時，在同一份 PDF 後面加一頁 A5 的「全民健保牙醫門診醫療服務北區 醫療確認單」，一次列印就一起印出；姓名、就醫日期、院所名稱/代號自動帶入。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -17,7 +17,7 @@
  * 原理：
  *   Dentall 的健保批價單是前端產生的 A5 橫式 PDF（blob），塞進 <iframe title="pdf-print-view"> 後呼叫 print()。
  *   1. 把程式以 <script> 注入頁面主世界，攔截那個 iframe 的 src 設定（和「健保批價單 加印下次預約」同一招，兩支可以同時裝，順序不拘）。
- *   2. 拿到 PDF 後：第一頁不是 A5 橫式就原樣放行；用 pdf.js 讀出第一頁的文字，確認是健保收據（有「健保」和「收據」字樣）。
+ *   2. 拿到 PDF 後：第一頁不是 A5 橫式就原樣放行；用 pdf.js 讀出第一頁的文字，確認是健保收據（標題「醫療費用收據」等收據字樣，加上「健保」「部分負擔」「就醫序號」等健保欄位，忽略字距空白）。
  *   3. 從收據文字找「病患姓名」「就診日期」「院所代號」旁邊的值；讀不到時，姓名／日期改從 Dentall 的 Redux store 取，
  *      院所名稱/代號改用選單設定的文字（批價單上沒有院所名稱，名稱一定要在選單設定一次）。
  *   4. 用 pdf-lib 在同一份 PDF 後面畫上 A5 橫式的醫療確認單（字型用收據同款 TW-Sung，只嵌入用到的字），
@@ -149,9 +149,18 @@
 
       let lines = null;
       try { lines = await pdfLines(bytes); } catch (e) { console.warn(TAG, '讀取收據文字失敗', e); }
-      const flat = lines ? lines.map((c) => c.join('')).join('') : '';
+      // 標題是「醫療費用收據」，不一定有「健保」兩字；改看收據上健保才有的欄位。
+      // 字距可能拉開、字型也可能把字對到康熙部首／相容漢字：先 NFKC 正規化、去掉空白再比對
+      const flat = lines ? lines.map((c) => c.join('')).join('').normalize('NFKC').replace(/\s+/g, '') : '';
       if (/[一-鿿]/.test(flat)) {
-        if (!(/健保/.test(flat) && /收據|收据/.test(flat))) { record({ result: '不是健保收據，略過' }); return null; }
+        const isReceipt = /收據|收据|批價|批价/.test(flat);
+        const isNhi = /健保|部分負擔|部份負擔|就醫序號|點數/.test(flat);
+        if (!(isReceipt && isNhi)) {
+          // 只記第一行（標題）方便查原因，不記姓名等內容
+          const head = lines[0] ? lines[0].join(' ').slice(0, 30) : '';
+          record({ result: `不是健保收據，略過（第一行：${head}）` });
+          return null;
+        }
       } else if (!isPdRoute()) {
         record({ result: '讀不到文字且不在處置單頁，略過' });
         return null;
