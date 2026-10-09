@@ -1,0 +1,15 @@
+Windows Registry Editor Version 5.00
+
+; Dentall: keep his.dentall.io tabs from being discarded by Chrome Memory Saver,
+; and force Chrome to restore the previous session on startup.
+; Policies: TabDiscardingExceptions (Chrome 108+), RestoreOnStartup = 1 (RestoreOnStartupIsLastSession)
+; https://chromeenterprise.google/policies/#TabDiscardingExceptions
+; https://chromeenterprise.google/policies/#RestoreOnStartup
+; Import: double-click, accept the admin (UAC) prompt, then restart Chrome and check chrome://policy
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome\TabDiscardingExceptions]
+"1"="his.dentall.io"
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome]
+"RestoreOnStartup"=dword:00000001
+

@@ -1,0 +1,12 @@
+Windows Registry Editor Version 5.00
+
+; Remove the policies added by chrome-policy-dentall.reg.
+; Only these two values are deleted; other Chrome policies are left untouched.
+; Import: double-click, accept the admin (UAC) prompt, then restart Chrome and check chrome://policy
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome\TabDiscardingExceptions]
+"1"=-
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome]
+"RestoreOnStartup"=-
+
