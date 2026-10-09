@@ -9,6 +9,7 @@
 | `dentall-registration-new-patient-alert.user.js` | 「就診列表」出現新掛號病患時，畫面下方跳出醒目提醒方塊、語音播報「○○醫師，○點○分預約病患抵達」並把該列標黃，點哪一位就關掉那一位；就診列表分頁在背景時另外送 Chrome 桌面通知 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js) |
 | `dentall-receipt-next-appt.user.js` | 列印「健保批價單」時，在收據底部置中加印病患未來最多兩筆預約（民國日期＋星期＋時間）；沒有未來預約則收據維持原樣 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js) |
 | `dentall-nhi-receipt-confirm-form.user.js` | 列印「健保批價單」時，在同一份 PDF 後面加一頁 A5 的「全民健保牙醫門診醫療服務北區 醫療確認單」，一次列印一起印出；姓名、就醫日期、院所名稱/代號自動帶入 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js) |
+| `dentall-auto-login.user.js` | 被登出、畫面出現登入表單時自動登入，登入後回到原本的頁面（例如就診列表）；帳號密碼用 Tampermonkey 選單設定，只存在那台電腦 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-auto-login.user.js) |
 
 ## 安裝
 
@@ -196,3 +197,58 @@ Tampermonkey 選單：
 - 用 [pdf.js](https://mozilla.github.io/pdf.js/) 讀批價單第一頁的文字找欄位，用 [pdf-lib](https://pdf-lib.js.org/) 畫確認單。字型是收據同款 TW-Sung，只嵌入用到的字。函式庫第一次使用時從 cdnjs／jsdelivr 載入。
 - 任何一步失敗（函式庫或字型載不到、PDF 讀不了…）都原樣列印收據，不會卡住櫃台。原因會記在「最近的處理紀錄」，F12 → Console 篩選 `confirm-form` 也看得到。
 - 讀到的姓名與日期只用在當次列印，只留在頁面記憶體，不寫進 localStorage。處理紀錄不記病患資料。腳本不呼叫 Dentall API。
+
+---
+
+## Dentall 自動登入
+
+目標：**Windows 開機 → Chrome 自動還原「釘選的就診列表分頁＋一個一般分頁」→ Dentall 若已登出，自動登入回到原頁面，完全不用按。**
+
+Dentall 登出後網址不變（例如還停在 `#/registration`），畫面換成登入表單。腳本看到登入表單，就用設定好的帳號密碼填入並按「登入」，成功後回到登出前的頁面。
+
+### 使用方式
+
+1. 安裝腳本後，在 Dentall 任一頁點 Tampermonkey 圖示 → 「Dentall 自動登入」→ **🔑 設定帳號密碼**，在跳出的小視窗填帳號、密碼，按儲存。
+2. 就診列表開在一個分頁（`https://his.dentall.io/htdc/#/registration`）並**釘選**，其他操作開另一個分頁。
+3. Chrome 設定 → 起始畫面 → 選「**繼續瀏覽上次開啟的頁面**」（`chrome://settings/onStartup`）。下面的 .reg 也會設這一項，但多數診所電腦不吃，見「Windows 政策檔」。
+
+Tampermonkey 選單：
+
+| 選單 | 作用 |
+|---|---|
+| 🔑 設定帳號密碼 | 小視窗輸入帳號、密碼（密碼欄位是遮罩的）；儲存同時會解除「已暫停」 |
+| 🗑 清除帳號密碼 | 刪掉這台電腦存的帳號密碼 |
+| 自動登入：開／關 | 關掉後看到登入表單也不動作 |
+| ⚠ 已暫停（上次失敗）→ 點此恢復 | 登入失敗後才出現，確認帳號密碼沒問題再點 |
+| 📋 最近紀錄 | 最近 20 筆：時間、分頁路由、結果（成功／失敗原因／等待／重新整理），不記帳號密碼 |
+
+登入頁下方會有一條橘色提示，說明這次為什麼沒有自動登入（尚未設定、已暫停、5 分鐘內剛試過、等另一個分頁…）。
+
+### 安全設計
+
+- **帳號密碼存在 Tampermonkey 的腳本儲存區**（`GM_setValue`），只在那台電腦，不在這個公開 repo、不在網頁的 localStorage，Dentall 的網頁也讀不到。但它是明碼存在電腦裡，能操作這台電腦 Chrome 的人都能從 Tampermonkey 看到，請只裝在診所內部、有開機密碼的電腦。
+- **每個分頁 5 分鐘最多試一次**（記在 sessionStorage）。
+- **失敗就停**：按「登入」後 20 秒仍停在登入頁，就算失敗，所有分頁一起暫停自動登入，直到從選單「恢復」或重新設定帳號密碼，避免密碼改了之後一直試把帳號鎖住。失敗原因（Dentall 顯示的錯誤訊息）記在「最近紀錄」。
+- **兩個分頁同時在登入頁**：用 localStorage 的鎖，只讓一個分頁登入；另一個分頁等它成功後自動重新整理。持鎖的分頁 60 秒沒完成，鎖就失效，交給下一輪判斷。
+
+### 回到原本的頁面
+
+登入狀態下，每個分頁把目前路由（例如 `#/registration`）記在 sessionStorage。登入成功後若 Dentall 跳到別的頁面，腳本會跳回那個路由。
+Chrome 還原分頁時 sessionStorage 也會一起還原，所以釘選的分頁會回到就診列表，另一個分頁回到它自己原本的頁面。
+
+### Windows 政策檔（第 4 個保險）
+
+[`windows/chrome-policy-dentall.reg`](windows/chrome-policy-dentall.reg) 設定兩條 Chrome 企業政策（寫在 `HKLM\SOFTWARE\Policies\Google\Chrome`）：
+
+| 政策 | 值 | 作用 |
+|---|---|---|
+| [`TabDiscardingExceptions`](https://chromeenterprise.google/policies/#TabDiscardingExceptions) | `1` = `his.dentall.io` | Dentall 的分頁永遠不會被「記憶體節省模式」或記憶體不足時卸載（Chrome 108 起） |
+| [`RestoreOnStartup`](https://chromeenterprise.google/policies/#RestoreOnStartup) | `dword:1` | 強制開啟 Chrome 時還原上次的分頁（1 = RestoreOnStartupIsLastSession） |
+
+**套用**：在 GitHub 打開檔案 → 右上角「Download raw file」下載 → 雙擊 → 系統管理員權限（UAC）按「是」→ 匯入確認按「是」→ 完全關閉 Chrome 再打開 → 網址列輸入 `chrome://policy`，按「重新載入政策」，確認兩條都在、狀態為「正常」。
+
+**移除**：同樣方式匯入 [`windows/chrome-policy-dentall-remove.reg`](windows/chrome-policy-dentall-remove.reg)，只刪這兩個值，不動其他 Chrome 政策。
+
+> ⚠ **`RestoreOnStartup` 在多數診所電腦不會生效。** Chrome 把它列為「敏感政策」：Windows 電腦**沒有加入 AD 網域／Azure AD，也沒有註冊 Chrome 企業雲端管理**時，從登錄檔設定的敏感政策會被忽略，`chrome://policy` 會顯示該政策被封鎖／忽略。這種電腦請改用上面「使用方式」第 3 步，在 Chrome 設定裡手動選「繼續瀏覽上次開啟的頁面」。
+> `TabDiscardingExceptions` 不是敏感政策，一般電腦都會生效。
+> 套用任何政策後，Chrome 設定頁會顯示「你的瀏覽器由貴機構管理」，這是正常的。
