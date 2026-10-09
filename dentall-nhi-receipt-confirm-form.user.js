@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 健保收據 附印醫療確認單
 // @namespace    htdayreportviewer
-// @version      2.0.3
+// @version      2.1.0
 // @description  his.dentall.io 列印「健保批價單」（健保看診收據）時，在同一份 PDF 後面加一頁 A5 的「全民健保牙醫門診醫療服務北區 醫療確認單」，一次列印就一起印出；姓名、就醫日期、院所名稱/代號自動帶入。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -17,7 +17,7 @@
  * 原理：
  *   Dentall 的健保批價單是前端產生的 A5 橫式 PDF（blob），塞進 <iframe title="pdf-print-view"> 後呼叫 print()。
  *   1. 把程式以 <script> 注入頁面主世界，攔截那個 iframe 的 src 設定（和「健保批價單 加印下次預約」同一招，兩支可以同時裝，順序不拘）。
- *   2. 拿到 PDF 後：第一頁不是 A5 橫式就原樣放行；用 pdf.js 讀出第一頁的文字，確認是健保收據（批價單的標題與欄位名稱是底圖讀不到，只看填入的值裡有沒有「健保」字樣）。
+ *   2. 從選單點「健保批價單(補發)」的不附印。拿到 PDF 後：第一頁不是 A5 橫式就原樣放行；用 pdf.js 讀出第一頁的文字，確認是健保收據（批價單的標題與欄位名稱是底圖讀不到，只看填入的值裡有沒有「健保」字樣）。
  *   3. 從收據文字找「病患姓名」「就診日期」「院所代號」旁邊的值；讀不到時，姓名／日期改從 Dentall 的 Redux store 取，
  *      院所名稱取收據抬頭、院所代號取收據最下面那行的 10 碼（再不行用 Dentall 設定）；都讀不到時才用選單設定的文字。
  *   4. 用 pdf-lib 在同一份 PDF 後面畫上 A5 橫式的醫療確認單（字型用收據同款 TW-Sung，只嵌入用到的字），
@@ -112,6 +112,14 @@
     W.addEventListener('hashchange', preload);
     W.addEventListener('DOMContentLoaded', preload);
 
+    // ---------- 補發不附印：「補發」字樣在批價單底圖上（一般批價單用白框蓋掉），讀不到文字，改記最後點的列印選項 ----------
+    let lastPrint = { reissue: false, at: 0 };
+    document.addEventListener('click', (e) => {
+      const el = e.target && e.target.closest && e.target.closest('[role="menuitem"], li, button, a');
+      const t = el ? (el.textContent || '').replace(/\s+/g, '') : '';
+      if (t.length <= 30 && /批價單/.test(t)) lastPrint = { reissue: /補發/.test(t), at: Date.now() };
+    }, true);
+
     // ---------- 攔截批價單 iframe 的 src ----------
     const srcDesc = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src');
     const pending = new Map(); // 原 blob URL → Promise<新 URL | null>
@@ -137,6 +145,10 @@
     });
 
     async function appendForm(url) {
+      if (lastPrint.reissue && Date.now() - lastPrint.at < 60 * 1000) {
+        record({ result: '補發的批價單，不附印確認單' });
+        return null;
+      }
       const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
       const L = await loadLib('pdfLib');
       const doc = await L.PDFDocument.load(bytes);
