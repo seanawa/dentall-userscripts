@@ -2,7 +2,7 @@
 // @name         Dentall 治療項目統計 線上瀏覽
 // @namespace    htdayreportviewer
 // （@namespace 請勿更改：Tampermonkey 以 name+namespace 辨識腳本，改了會被當成另一支新腳本）
-// @version      1.3.0
+// @version      1.4.0
 // @description  在 his.dentall.io 的「治療項目統計」按下「下載報表」時，直接在網頁上顯示統計與明細，不必開 Excel；「列印預約表」的「匯出Excel」左邊多一顆「檢視」，預約表直接在視窗裡看。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -46,7 +46,7 @@
       } catch (e) { console.warn(TAG, e); }
       return originalOpen(url, ...rest);
     };
-    console.log(TAG, 'v1.3.0 已啟動，window.open 已接管');
+    console.log(TAG, 'v1.4.0 已啟動，window.open 已接管');
 
     // ---------- 攔截前端產生的 xlsx 下載（列印預約表「匯出Excel」） ----------
     // Dentall 在瀏覽器裡產生 xlsx Blob → URL.createObjectURL → 對一個不在畫面上的 <a download> 送 click。
@@ -86,6 +86,7 @@
           setTimeout(() => URL.revokeObjectURL(a.href), 60000);
         },
         sheetTabs: true,
+        printable: true,
       });
     }
     const originalAnchorClick = HTMLAnchorElement.prototype.click;
@@ -157,7 +158,7 @@
     }
 
     // ---------- 主流程 ----------
-    // src: { title, load: () => Promise<ArrayBuffer>, download: () => void, sheetTabs?: 每個工作表一個分頁 }
+    // src: { title, load: () => Promise<ArrayBuffer>, download: () => void, sheetTabs?: 每個工作表一個分頁（預約表）, printable?: 顯示列印按鈕 }
     async function showReport(src) {
       injectCss();
       const mask = el('div', 'drv-mask');
@@ -169,7 +170,15 @@
       dlBtn.onclick = src.download;
       const closeBtn = el('button', 'drv-btn'); closeBtn.textContent = '關閉';
       closeBtn.onclick = close;
-      head.append(title, dlBtn, closeBtn);
+      const shown = {}; // 目前分頁畫面上的內容 { name, header, rows }，給列印用
+      if (src.printable) {
+        const printBtn = el('button', 'drv-btn'); printBtn.textContent = '列印';
+        printBtn.title = '列印目前分頁（照目前的搜尋與排序，不印電話）';
+        printBtn.onclick = () => { if (shown.header) printTable(src.title, shown); };
+        head.append(title, printBtn, dlBtn, closeBtn);
+      } else {
+        head.append(title, dlBtn, closeBtn);
+      }
       box.appendChild(head);
       const content = el('div'); content.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:hidden;';
       content.innerHTML = '<div class="drv-loading">報表讀取中…</div>';
@@ -188,7 +197,7 @@
           name: n,
           rows: XL.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '' }),
         }));
-        renderWorkbook(content, sheets, !!src.sheetTabs);
+        renderWorkbook(content, sheets, !!src.sheetTabs, shown);
       } catch (e) {
         console.error(TAG, e);
         content.innerHTML = '<div class="drv-err">讀取報表失敗：' + escapeHtml(e.message) + '</div>';
@@ -198,14 +207,21 @@
     // ---------- 渲染 ----------
     const nonEmpty = (rows) => rows.filter((r) => r.some((c) => String(c).trim() !== ''));
 
-    function renderWorkbook(root, sheets, sheetTabs) {
+    function renderWorkbook(root, sheets, sheetTabs, shown) {
       root.innerHTML = '';
       const views = [];
       if (sheetTabs) {
         // 列印預約表：全院所＋各醫師，每個工作表一個分頁
         for (const s of sheets) {
-          const data = nonEmpty(s.rows.slice(1));
-          views.push({ name: s.name + '（' + data.length + '）', render: (c) => renderDetail(c, s.rows[0] || [], data) });
+          const header = s.rows[0] || [];
+          const data = apptRows(header, nonEmpty(s.rows.slice(1)));
+          views.push({
+            name: s.name + '（' + data.length + '）',
+            render: (c) => renderDetail(c, header, data, {
+              noIndex: true,
+              onDraw: (rows) => Object.assign(shown, { name: s.name, header, rows }),
+            }),
+          });
         }
         mountViews(root, views);
         return;
@@ -226,6 +242,51 @@
         views.push({ name: s.name, render: (c) => renderDetail(c, s.rows[0] || [], s.rows.slice(1)) });
       }
       mountViews(root, views);
+    }
+
+    // 預約表：拿掉「★保留」的時段，時間去掉年份（2026/10/12 09:30 → 10/12 09:30）
+    function apptRows(header, data) {
+      const nameIdx = header.findIndex((h) => /病患名稱|姓名/.test(String(h)));
+      const timeIdx = header.findIndex((h) => String(h).trim() === '時間');
+      return data
+        .filter((r) => nameIdx < 0 || String(r[nameIdx] ?? '').trim() !== '★保留')
+        .map((r) => {
+          if (timeIdx < 0) return r;
+          const out = r.slice();
+          out[timeIdx] = String(r[timeIdx] ?? '').trim().replace(/^\d{4}[\/-]/, '');
+          return out;
+        });
+    }
+
+    // 用隱藏 iframe 列印目前分頁，不印電話欄
+    function printTable(title, shown) {
+      const cols = shown.header.map((h, i) => i).filter((i) => !/電話|手機/.test(String(shown.header[i])));
+      let h = '<table><thead><tr>' + cols.map((i) => `<th>${escapeHtml(String(shown.header[i]))}</th>`).join('') + '</tr></thead><tbody>';
+      const wrapCol = shown.header.findIndex((x) => /備註/.test(String(x))); // 只有備註可換行，其他欄不折行
+      for (const r of shown.rows) h += '<tr>' + cols.map((i) => `<td${i === wrapCol ? ' class="wrap"' : ''}>${escapeHtml(String(r[i] ?? '').trim())}</td>`).join('') + '</tr>';
+      h += '</tbody></table>';
+      const heading = escapeHtml(title + '　' + shown.name + '（' + shown.rows.length + ' 筆）');
+      const doc = `<!doctype html><html><head><meta charset="utf-8"><title>${heading}</title><style>
+        @page{size:A4 portrait;margin:10mm;}
+        body{font-family:"PingFang TC","Microsoft JhengHei",sans-serif;font-size:11px;color:#000;margin:0;}
+        h1{font-size:14px;margin:0 0 6px;}
+        table{border-collapse:collapse;width:100%;}
+        th,td{border:1px solid #999;padding:3px 5px;text-align:left;vertical-align:top;white-space:nowrap;}
+        td.wrap{white-space:normal;width:100%;}
+        th{background:#eee;white-space:nowrap;}
+        thead{display:table-header-group;}
+        tr{page-break-inside:avoid;}
+        </style></head><body><h1>${heading}</h1>${h}</body></html>`;
+      const frame = el('iframe');
+      frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+      document.body.appendChild(frame);
+      const fd = frame.contentDocument;
+      fd.open(); fd.write(doc); fd.close();
+      setTimeout(() => {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+        setTimeout(() => frame.remove(), 1000);
+      }, 100);
     }
 
     function mountViews(root, views) {
@@ -291,7 +352,8 @@
       draw('');
     }
 
-    function renderDetail(root, header, data) {
+    // opts: { noIndex?: 不顯示 # 欄, onDraw?: (目前顯示的列) => void }
+    function renderDetail(root, header, data, opts = {}) {
       const tools = el('div', 'drv-tools');
       const search = el('input'); search.placeholder = '搜尋任意欄位…'; search.style.minWidth = '240px';
       const colSel = el('select');
@@ -317,14 +379,15 @@
           });
         }
         count.textContent = `${rows.length} / ${data.length} 筆`;
-        let h = '<table class="drv-table"><thead><tr><th class="num">#</th>';
+        if (opts.onDraw) opts.onDraw(rows);
+        let h = '<table class="drv-table"><thead><tr>' + (opts.noIndex ? '' : '<th class="num">#</th>');
         header.forEach((c, i) => {
           const arrow = i === sortCol ? (sortDir > 0 ? ' ▲' : ' ▼') : '';
           h += `<th data-i="${i}">${escapeHtml(String(c))}${arrow}</th>`;
         });
         h += '</tr></thead><tbody>';
         rows.forEach((r, n) => {
-          h += `<tr><td class="num">${n + 1}</td>`;
+          h += '<tr>' + (opts.noIndex ? '' : `<td class="num">${n + 1}</td>`);
           for (let i = 0; i < header.length; i++) h += `<td>${escapeHtml(String(r[i] ?? '').trim())}</td>`;
           h += '</tr>';
         });
