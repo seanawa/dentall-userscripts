@@ -2,7 +2,7 @@
 // @name         Dentall 治療項目統計 線上瀏覽
 // @namespace    htdayreportviewer
 // （@namespace 請勿更改：Tampermonkey 以 name+namespace 辨識腳本，改了會被當成另一支新腳本）
-// @version      1.5.0
+// @version      1.5.1
 // @description  在 his.dentall.io 的「治療項目統計」按下「下載報表」時，直接在網頁上顯示統計與明細，不必開 Excel；「列印預約表」的「匯出Excel」左邊多一顆「檢視」，預約表直接在視窗裡看。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -46,7 +46,7 @@
       } catch (e) { console.warn(TAG, e); }
       return originalOpen(url, ...rest);
     };
-    console.log(TAG, 'v1.5.0 已啟動，window.open 已接管');
+    console.log(TAG, 'v1.5.1 已啟動，window.open 已接管');
 
     // ---------- 攔截前端產生的 xlsx 下載（列印預約表「匯出Excel」） ----------
     // Dentall 在瀏覽器裡產生 xlsx Blob → URL.createObjectURL → 對一個不在畫面上的 <a download> 送 click。
@@ -180,7 +180,7 @@
           if (list.length) printTables(src.title, list);
         };
         const oneBtn = el('button', 'drv-btn'); oneBtn.textContent = '單獨列印';
-        oneBtn.title = '列印目前分頁（照目前的搜尋與排序，不印電話、主治醫師）';
+        oneBtn.title = '列印目前分頁（照目前的搜尋與排序；不印電話，全院所另不印需時、性別，各醫師另不印主治醫師）';
         oneBtn.onclick = () => { if (shown.current) printTables(src.title, [shown.current]); };
         head.append(title, allBtn, oneBtn, dlBtn, closeBtn);
       } else {
@@ -266,10 +266,12 @@
         });
     }
 
-    // 用隱藏 iframe 列印；sections = [{ name, header, rows }]，每段各自換頁。不印電話、主治醫師欄
+    // 用隱藏 iframe 列印；sections = [{ name, header, rows }]，每段各自換頁。
+    // 不印的欄：各醫師 → 電話、主治醫師；全院所 → 電話、需時、性別（保留主治醫師）
     function printTables(title, sections) {
       const body = sections.map((sec) => {
-        const cols = sec.header.map((h, i) => i).filter((i) => !/電話|手機|主治醫師/.test(String(sec.header[i])));
+        const skip = /全院所/.test(sec.name) ? /電話|手機|需時|性別/ : /電話|手機|主治醫師/;
+        const cols = sec.header.map((h, i) => i).filter((i) => !skip.test(String(sec.header[i])));
         const wrapCol = sec.header.findIndex((x) => /備註/.test(String(x))); // 只有備註可換行，其他欄不折行
         let h = '<section><h1>' + escapeHtml(title + '　' + sec.name + '（' + sec.rows.length + ' 筆）') + '</h1>';
         h += '<table><thead><tr>' + cols.map((i) => `<th>${escapeHtml(String(sec.header[i]))}</th>`).join('') + '</tr></thead><tbody>';
