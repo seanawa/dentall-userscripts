@@ -2,7 +2,7 @@
 // @name         Dentall 治療項目統計 線上瀏覽
 // @namespace    htdayreportviewer
 // （@namespace 請勿更改：Tampermonkey 以 name+namespace 辨識腳本，改了會被當成另一支新腳本）
-// @version      1.4.0
+// @version      1.5.0
 // @description  在 his.dentall.io 的「治療項目統計」按下「下載報表」時，直接在網頁上顯示統計與明細，不必開 Excel；「列印預約表」的「匯出Excel」左邊多一顆「檢視」，預約表直接在視窗裡看。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -46,7 +46,7 @@
       } catch (e) { console.warn(TAG, e); }
       return originalOpen(url, ...rest);
     };
-    console.log(TAG, 'v1.4.0 已啟動，window.open 已接管');
+    console.log(TAG, 'v1.5.0 已啟動，window.open 已接管');
 
     // ---------- 攔截前端產生的 xlsx 下載（列印預約表「匯出Excel」） ----------
     // Dentall 在瀏覽器裡產生 xlsx Blob → URL.createObjectURL → 對一個不在畫面上的 <a download> 送 click。
@@ -170,12 +170,19 @@
       dlBtn.onclick = src.download;
       const closeBtn = el('button', 'drv-btn'); closeBtn.textContent = '關閉';
       closeBtn.onclick = close;
-      const shown = {}; // 目前分頁畫面上的內容 { name, header, rows }，給列印用
+      // 給列印用：current = 目前分頁畫面上的內容 { name, header, rows }；all = 每個工作表
+      const shown = { current: null, all: [] };
       if (src.printable) {
-        const printBtn = el('button', 'drv-btn'); printBtn.textContent = '列印';
-        printBtn.title = '列印目前分頁（照目前的搜尋與排序，不印電話）';
-        printBtn.onclick = () => { if (shown.header) printTable(src.title, shown); };
-        head.append(title, printBtn, dlBtn, closeBtn);
+        const allBtn = el('button', 'drv-btn'); allBtn.textContent = '全部列印';
+        allBtn.title = '每位醫師一份、各自換頁（不印全院所、電話、主治醫師）';
+        allBtn.onclick = () => {
+          const list = shown.all.filter((x) => !/全院所/.test(x.name) && x.rows.length);
+          if (list.length) printTables(src.title, list);
+        };
+        const oneBtn = el('button', 'drv-btn'); oneBtn.textContent = '單獨列印';
+        oneBtn.title = '列印目前分頁（照目前的搜尋與排序，不印電話、主治醫師）';
+        oneBtn.onclick = () => { if (shown.current) printTables(src.title, [shown.current]); };
+        head.append(title, allBtn, oneBtn, dlBtn, closeBtn);
       } else {
         head.append(title, dlBtn, closeBtn);
       }
@@ -213,13 +220,14 @@
       if (sheetTabs) {
         // 列印預約表：全院所＋各醫師，每個工作表一個分頁
         for (const s of sheets) {
-          const header = s.rows[0] || [];
+          const header = (s.rows[0] || []).map((h) => (String(h).trim() === '治療長度' ? '需時' : h));
           const data = apptRows(header, nonEmpty(s.rows.slice(1)));
+          shown.all.push({ name: s.name, header, rows: data });
           views.push({
             name: s.name + '（' + data.length + '）',
             render: (c) => renderDetail(c, header, data, {
               noIndex: true,
-              onDraw: (rows) => Object.assign(shown, { name: s.name, header, rows }),
+              onDraw: (rows) => { shown.current = { name: s.name, header, rows }; },
             }),
           });
         }
@@ -258,15 +266,18 @@
         });
     }
 
-    // 用隱藏 iframe 列印目前分頁，不印電話欄
-    function printTable(title, shown) {
-      const cols = shown.header.map((h, i) => i).filter((i) => !/電話|手機/.test(String(shown.header[i])));
-      let h = '<table><thead><tr>' + cols.map((i) => `<th>${escapeHtml(String(shown.header[i]))}</th>`).join('') + '</tr></thead><tbody>';
-      const wrapCol = shown.header.findIndex((x) => /備註/.test(String(x))); // 只有備註可換行，其他欄不折行
-      for (const r of shown.rows) h += '<tr>' + cols.map((i) => `<td${i === wrapCol ? ' class="wrap"' : ''}>${escapeHtml(String(r[i] ?? '').trim())}</td>`).join('') + '</tr>';
-      h += '</tbody></table>';
-      const heading = escapeHtml(title + '　' + shown.name + '（' + shown.rows.length + ' 筆）');
-      const doc = `<!doctype html><html><head><meta charset="utf-8"><title>${heading}</title><style>
+    // 用隱藏 iframe 列印；sections = [{ name, header, rows }]，每段各自換頁。不印電話、主治醫師欄
+    function printTables(title, sections) {
+      const body = sections.map((sec) => {
+        const cols = sec.header.map((h, i) => i).filter((i) => !/電話|手機|主治醫師/.test(String(sec.header[i])));
+        const wrapCol = sec.header.findIndex((x) => /備註/.test(String(x))); // 只有備註可換行，其他欄不折行
+        let h = '<section><h1>' + escapeHtml(title + '　' + sec.name + '（' + sec.rows.length + ' 筆）') + '</h1>';
+        h += '<table><thead><tr>' + cols.map((i) => `<th>${escapeHtml(String(sec.header[i]))}</th>`).join('') + '</tr></thead><tbody>';
+        for (const r of sec.rows) h += '<tr>' + cols.map((i) => `<td${i === wrapCol ? ' class="wrap"' : ''}>${escapeHtml(String(r[i] ?? '').trim())}</td>`).join('') + '</tr>';
+        return h + '</tbody></table></section>';
+      }).join('');
+      const docTitle = escapeHtml(sections.length === 1 ? title + '　' + sections[0].name : title);
+      const doc = `<!doctype html><html><head><meta charset="utf-8"><title>${docTitle}</title><style>
         @page{size:A4 portrait;margin:10mm;}
         body{font-family:"PingFang TC","Microsoft JhengHei",sans-serif;font-size:11px;color:#000;margin:0;}
         h1{font-size:14px;margin:0 0 6px;}
@@ -276,7 +287,8 @@
         th{background:#eee;white-space:nowrap;}
         thead{display:table-header-group;}
         tr{page-break-inside:avoid;}
-        </style></head><body><h1>${heading}</h1>${h}</body></html>`;
+        section+section{page-break-before:always;}
+        </style></head><body>${body}</body></html>`;
       const frame = el('iframe');
       frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
       document.body.appendChild(frame);
