@@ -52,7 +52,9 @@
   table{width:100%;border-collapse:collapse;font-size:15px;}
   td{padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top;}
   td:first-child{white-space:nowrap;font-weight:600;width:38%;}
+  @media (max-width:640px){ td:first-child{white-space:normal;} }
   .links a{color:var(--accent);word-break:break-all;}
+  .links code{word-break:break-all;}
   .reset{background:none;border:none;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:14px;padding:0;}
   kbd{background:var(--code);border:1px solid var(--line);border-radius:4px;padding:0 6px;font-size:13px;}
   @media print{ .link,.copybox button,.reset,.progress{display:none} .card{break-inside:avoid} }
@@ -61,9 +63,9 @@
 <body>
 <div class="wrap">
   <h1>Dentall 腳本 安裝清單</h1>
-  <p class="sub">泓泰牙醫診所公用電腦用。照順序打勾，六步完成。進度只存在這台電腦的瀏覽器裡。</p>
+  <p class="sub">泓泰牙醫診所公用電腦用。照順序打勾，七步完成。進度只存在這台電腦的瀏覽器裡。</p>
 
-  <div class="progress"><div class="bar"><i id="bar"></i></div><b id="prog">0 / 6</b></div>
+  <div class="progress"><div class="bar"><i id="bar"></i></div><b id="prog">0 / 7</b></div>
 
   <div class="card step" data-step="1">
     <input type="checkbox" aria-label="步驟 1 完成">
@@ -101,7 +103,8 @@
       <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js" target="_blank" rel="noopener">安裝「Dentall 就診列表 新掛號提醒」</a>
       <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js" target="_blank" rel="noopener">安裝「Dentall 健保批價單 加印下次預約」</a>
       <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js" target="_blank" rel="noopener">安裝「Dentall 健保收據 附印醫療確認單」</a>
-      <p>四支都裝；每一支都會各自跳出安裝畫面，各按一次「安裝」。</p>
+      <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-auto-login.user.js" target="_blank" rel="noopener">安裝「Dentall 自動登入」</a>
+      <p>五支都裝；每一支都會各自跳出安裝畫面，各按一次「安裝」。</p>
       <div class="note">如果點了只看到一整頁文字，沒有安裝畫面，代表步驟 1 或 2 沒完成。回去補做後再點一次。</div>
     </div>
   </div>
@@ -125,8 +128,8 @@
       <a class="link" href="https://his.dentall.io/htdc/" target="_blank" rel="noopener">開啟 Dentall HIS</a>
       <p>登入後，在 Dentall 頁面點工具列的 Tampermonkey 圖示，應該看到：</p>
       <ol class="sub-steps">
-        <li>圖示右下角有數字 <b>4</b>（等於已安裝的腳本數）。</li>
-        <li>清單裡有「Dentall 就診列表 記住排序」「Dentall 就診列表 新掛號提醒」「Dentall 健保批價單 加印下次預約」「Dentall 健保收據 附印醫療確認單」，開關都是綠色。每一支只能出現一次，重複的要刪掉。</li>
+        <li>圖示右下角有數字 <b>5</b>（等於已安裝的腳本數）。</li>
+        <li>清單裡有「Dentall 就診列表 記住排序」「Dentall 就診列表 新掛號提醒」「Dentall 健保批價單 加印下次預約」「Dentall 健保收據 附印醫療確認單」「Dentall 自動登入」，開關都是綠色。每一支只能出現一次，重複的要刪掉。</li>
         <li>彈窗最上方<b>沒有</b>藍色橫幅寫「請啟用『允許使用者腳本』」。有的話回步驟 2。</li>
       </ol>
     </div>
@@ -145,6 +148,34 @@
     </div>
   </div>
 
+
+  <div class="card step" data-step="7">
+    <input type="checkbox" aria-label="步驟 7 完成">
+    <div class="body">
+      <h2>7. 設定開機自動登入</h2>
+      <p>目標：Windows 開機後 Chrome 自己打開、還原就診列表分頁，Dentall 若已登出會自動登入，不用按任何東西。</p>
+      <ol class="sub-steps">
+        <li><b>設定帳號密碼</b>：在 Dentall 頁面點 Tampermonkey 圖示 →「Dentall 自動登入」→「🔑 設定帳號密碼」，填好按「儲存」。帳號密碼只存在這台電腦。</li>
+        <li><b>開好分頁</b>：就診列表開在一個分頁，在分頁上按右鍵 →「釘選」；其他操作開另一個分頁。下班直接關機，不要關掉這兩個分頁。
+          <div class="copybox"><code id="reg-url">https://his.dentall.io/htdc/#/registration</code><button data-copy="#reg-url">複製</button></div></li>
+        <li><b>Chrome 開啟時還原分頁</b>：複製下面網址貼到網址列，選「<b>繼續瀏覽上次開啟的頁面</b>」。
+          <div class="copybox"><code id="startup-url">chrome://settings/onStartup</code><button data-copy="#startup-url">複製</button></div></li>
+        <li><b>開機自動打開 Chrome</b>（Windows）：開始按鈕按<b>右鍵</b> →「執行」，貼上下面這行按「確定」，會打開「啟動」資料夾。
+          <div class="copybox"><code id="startup-folder">shell:startup</code><button data-copy="#startup-folder">複製</button></div>
+          在資料夾空白處按右鍵 →「新增」→「捷徑」，位置貼上下面這行 →「下一步」→ 名稱打「Chrome」→「完成」。
+          <div class="copybox"><code id="chrome-exe">"C:\Program Files\Google\Chrome\Application\chrome.exe"</code><button data-copy="#chrome-exe">複製</button></div>
+          <span class="tip">出現「找不到」的話，把 <code>Program Files</code> 換成 <code>Program Files (x86)</code> 再試。</span></li>
+        <li><b>Dentall 分頁不被卸載</b>（Windows，需要系統管理員權限）：打開下面的 GitHub 頁面，按右上角「Download raw file」下載，雙擊下載的檔案 → 權限視窗按「是」→ 匯入確認按「是」。
+          <a class="link" href="https://github.com/seanawa/dentall-userscripts/blob/main/windows/chrome-policy-dentall.reg" target="_blank" rel="noopener">下載 chrome-policy-dentall.reg</a>
+          <br>完全關閉 Chrome 再打開，把下面網址貼到網址列，確認 <code>TabDiscardingExceptions</code> 的狀態是「正常」。
+          <div class="copybox"><code id="policy-url">chrome://policy</code><button data-copy="#policy-url">複製</button></div>
+          <span class="tip">旁邊的 <code>RestoreOnStartup</code> 顯示被封鎖或忽略是正常的（沒加入網域的電腦 Chrome 不吃這條），上面第 3 點已經手動設好。</span></li>
+      </ol>
+      <div class="ok">測試：兩個分頁開著，直接重新開機，開機後什麼都不要按。Chrome 自己打開、兩個分頁都還原、Dentall 已登入、釘選的分頁停在就診列表，就成功了。</div>
+      <div class="note">沒有自動登入：登入頁下方會有一條橘色提示說明原因；也可以點 Tampermonkey 圖示 →「Dentall 自動登入」→「📋 最近紀錄」查看。登入失敗一次就會暫停，確認帳號密碼後從同一個選單恢復。<br>Windows 開機若要輸入密碼，要先有人登入 Windows，Chrome 才會打開。</div>
+    </div>
+  </div>
+
   <p><button class="reset" id="reset">清除這台電腦的打勾進度</button></p>
 
   <h3>所有連結一覽</h3>
@@ -157,6 +188,8 @@
       <tr><td>安裝：就診列表 新掛號提醒</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js</a></td></tr>
       <tr><td>安裝：健保批價單 加印下次預約</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js</a></td></tr>
       <tr><td>安裝：健保收據 附印醫療確認單</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js</a></td></tr>
+      <tr><td>安裝：自動登入</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-auto-login.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-auto-login.user.js</a></td></tr>
+      <tr><td>Chrome 政策檔（分頁不卸載）</td><td><a href="https://github.com/seanawa/dentall-userscripts/blob/main/windows/chrome-policy-dentall.reg" target="_blank" rel="noopener">windows/chrome-policy-dentall.reg</a>；移除用：<a href="https://github.com/seanawa/dentall-userscripts/blob/main/windows/chrome-policy-dentall-remove.reg" target="_blank" rel="noopener">chrome-policy-dentall-remove.reg</a></td></tr>
       <tr><td>Dentall HIS</td><td><a href="https://his.dentall.io/htdc/" target="_blank" rel="noopener">his.dentall.io/htdc</a></td></tr>
       <tr><td>程式碼與說明（GitHub）</td><td><a href="https://github.com/seanawa/dentall-userscripts" target="_blank" rel="noopener">github.com/seanawa/dentall-userscripts</a></td></tr>
     </table>
@@ -166,7 +199,7 @@
   <div class="card">
     <table>
       <tr><td>點安裝連結只看到文字</td><td>Tampermonkey 沒裝，或步驟 2 的開關沒開。</td></tr>
-      <tr><td>Tampermonkey 圖示沒有數字 4</td><td>不在 Dentall 頁面、腳本開關被關掉、或步驟 2 沒開。</td></tr>
+      <tr><td>Tampermonkey 圖示沒有數字 5</td><td>不在 Dentall 頁面、腳本開關被關掉、或步驟 2 沒開。</td></tr>
       <tr><td>有藍色橫幅「請啟用允許使用者腳本」</td><td>步驟 2 沒開。開完要重新整理 Dentall 頁面。</td></tr>
       <tr><td>腳本以後怎麼更新</td><td>不用動。Tampermonkey 每天會自動檢查 GitHub 上的新版。</td></tr>
     </table>
