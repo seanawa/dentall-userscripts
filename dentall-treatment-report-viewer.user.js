@@ -2,8 +2,8 @@
 // @name         Dentall 治療項目統計 線上瀏覽
 // @namespace    htdayreportviewer
 // （@namespace 請勿更改：Tampermonkey 以 name+namespace 辨識腳本，改了會被當成另一支新腳本）
-// @version      1.2.1
-// @description  在 his.dentall.io 的「治療項目統計」按下「下載報表」時，直接在網頁上顯示統計與明細，不必開 Excel。
+// @version      1.3.0
+// @description  在 his.dentall.io 的「治療項目統計」按下「下載報表」時，直接在網頁上顯示統計與明細，不必開 Excel；「列印預約表」的「匯出Excel」左邊多一顆「檢視」，預約表直接在視窗裡看。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
 // @supportURL   https://github.com/seanawa/dentall-userscripts/issues
@@ -35,13 +35,69 @@
         const u = String(url || '');
         if (/storage\.googleapis\.com/.test(u) && /\.xlsx(\?|$)/i.test(u)) {
           console.log(TAG, '攔截到報表下載，改為頁面內顯示');
-          showReport(u);
+          const fileName = decodeURIComponent(u.split('/').pop().split('?')[0]);
+          showReport({
+            title: fileName,
+            load: () => fetch(u).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); }),
+            download: () => originalOpen(u, '_blank'),
+          });
           return null;
         }
       } catch (e) { console.warn(TAG, e); }
       return originalOpen(url, ...rest);
     };
-    console.log(TAG, 'v1.2.0 已啟動，window.open 已接管');
+    console.log(TAG, 'v1.3.0 已啟動，window.open 已接管');
+
+    // ---------- 攔截前端產生的 xlsx 下載（列印預約表「匯出Excel」） ----------
+    // Dentall 在瀏覽器裡產生 xlsx Blob → URL.createObjectURL → 對一個不在畫面上的 <a download> 送 click。
+    // 只在按了腳本的「檢視」後短時間內攔截，平常按「匯出Excel」照舊下載。
+    let captureUntil = 0;
+    const captured = new Map(); // blob URL → Blob
+    const originalCreateObjectURL = URL.createObjectURL;
+    URL.createObjectURL = function (obj) {
+      const url = originalCreateObjectURL.apply(this, arguments);
+      if (Date.now() < captureUntil && obj instanceof Blob) {
+        captured.set(url, obj);
+        // 萬一不是透過 <a> 下載，2 秒後仍直接開啟
+        setTimeout(() => { if (captured.has(url)) openCaptured(url, ''); }, 2000);
+      }
+      return url;
+    };
+    function swallowAnchor(a) {
+      if (!(a instanceof HTMLAnchorElement) || !captured.has(a.href)) return false;
+      openCaptured(a.href, a.download || '');
+      return true;
+    }
+    function openCaptured(url, name) {
+      const blob = captured.get(url);
+      if (!blob) return;
+      captured.delete(url);
+      captureUntil = 0;
+      const fileName = name || '預約表.xlsx';
+      console.log(TAG, '攔截到預約表匯出，改為頁面內顯示');
+      showReport({
+        title: fileName.replace(/\.xlsx$/i, ''),
+        load: () => blob.arrayBuffer(),
+        download: () => {
+          const a = document.createElement('a');
+          a.href = originalCreateObjectURL.call(URL, blob);
+          a.download = fileName;
+          originalAnchorClick.call(a);
+          setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+        },
+        sheetTabs: true,
+      });
+    }
+    const originalAnchorClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      if (swallowAnchor(this)) return;
+      return originalAnchorClick.apply(this, arguments);
+    };
+    const originalDispatch = EventTarget.prototype.dispatchEvent;
+    EventTarget.prototype.dispatchEvent = function (ev) {
+      if (ev && ev.type === 'click' && swallowAnchor(this)) return true;
+      return originalDispatch.apply(this, arguments);
+    };
 
     // ---------- SheetJS 延遲載入 ----------
     let xlsxPromise = null;
@@ -101,16 +157,16 @@
     }
 
     // ---------- 主流程 ----------
-    async function showReport(url) {
+    // src: { title, load: () => Promise<ArrayBuffer>, download: () => void, sheetTabs?: 每個工作表一個分頁 }
+    async function showReport(src) {
       injectCss();
-      const fileName = decodeURIComponent(url.split('/').pop().split('?')[0]);
       const mask = el('div', 'drv-mask');
       const box = el('div', 'drv-box');
       mask.appendChild(box);
       const head = el('div', 'drv-head');
-      const title = el('h3'); title.textContent = fileName;
+      const title = el('h3'); title.textContent = src.title;
       const dlBtn = el('button', 'drv-btn'); dlBtn.textContent = '下載 Excel';
-      dlBtn.onclick = () => originalOpen(url, '_blank');
+      dlBtn.onclick = src.download;
       const closeBtn = el('button', 'drv-btn'); closeBtn.textContent = '關閉';
       closeBtn.onclick = close;
       head.append(title, dlBtn, closeBtn);
@@ -126,15 +182,13 @@
       mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
 
       try {
-        const [XL, resp] = await Promise.all([loadXLSX(), fetch(url)]);
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        const buf = await resp.arrayBuffer();
+        const [XL, buf] = await Promise.all([loadXLSX(), src.load()]);
         const wb = XL.read(buf, { type: 'array' });
         const sheets = wb.SheetNames.map((n) => ({
           name: n,
           rows: XL.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '' }),
         }));
-        renderWorkbook(content, sheets);
+        renderWorkbook(content, sheets, !!src.sheetTabs);
       } catch (e) {
         console.error(TAG, e);
         content.innerHTML = '<div class="drv-err">讀取報表失敗：' + escapeHtml(e.message) + '</div>';
@@ -142,14 +196,25 @@
     }
 
     // ---------- 渲染 ----------
-    function renderWorkbook(root, sheets) {
+    const nonEmpty = (rows) => rows.filter((r) => r.some((c) => String(c).trim() !== ''));
+
+    function renderWorkbook(root, sheets, sheetTabs) {
       root.innerHTML = '';
+      const views = [];
+      if (sheetTabs) {
+        // 列印預約表：全院所＋各醫師，每個工作表一個分頁
+        for (const s of sheets) {
+          const data = nonEmpty(s.rows.slice(1));
+          views.push({ name: s.name + '（' + data.length + '）', render: (c) => renderDetail(c, s.rows[0] || [], data) });
+        }
+        mountViews(root, views);
+        return;
+      }
       const sheet = sheets[0];
       const header = sheet.rows[0] || [];
-      const data = sheet.rows.slice(1).filter((r) => r.some((c) => String(c).trim() !== ''));
+      const data = nonEmpty(sheet.rows.slice(1));
 
       // 分頁順序：明細（預設）→ 統計（醫師 × 項目）
-      const views = [];
       views.push({ name: '明細（' + data.length + ' 筆）', render: (c) => renderDetail(c, header, data) });
       const itemIdx = header.findIndex((h) => /處置項目|項目/.test(String(h)));
       const docIdx = header.findIndex((h) => /醫師/.test(String(h)));
@@ -160,7 +225,10 @@
         const s = sheets[i];
         views.push({ name: s.name, render: (c) => renderDetail(c, s.rows[0] || [], s.rows.slice(1)) });
       }
+      mountViews(root, views);
+    }
 
+    function mountViews(root, views) {
       const tabs = el('div', 'drv-tabs');
       const body = el('div'); body.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:hidden;';
       views.forEach((v, i) => {
@@ -257,7 +325,7 @@
         h += '</tr></thead><tbody>';
         rows.forEach((r, n) => {
           h += `<tr><td class="num">${n + 1}</td>`;
-          for (let i = 0; i < header.length; i++) h += `<td>${escapeHtml(String(r[i] ?? ''))}</td>`;
+          for (let i = 0; i < header.length; i++) h += `<td>${escapeHtml(String(r[i] ?? '').trim())}</td>`;
           h += '</tr>';
         });
         h += '</tbody></table>';
@@ -405,12 +473,42 @@
       }
     }
 
+    // ---------- 列印預約表：「匯出Excel」左邊加「檢視」 ----------
+    function injectApptViewButton() {
+      const dlg = [...document.querySelectorAll('.ant-modal')].find((m) => {
+        const t = m.querySelector('.ant-modal-title');
+        return t && /列印預約表/.test(t.textContent || '');
+      });
+      if (!dlg || dlg.querySelector('.drv-appt-view')) return;
+      const exportBtn = [...dlg.querySelectorAll('button')].find((b) => /匯出\s*Excel/i.test(b.textContent || ''));
+      const item = exportBtn && exportBtn.parentElement;
+      if (!item || !item.parentElement) return;
+      // 複製 Dentall 自己的按鈕外觀（不會帶到 React 的事件）
+      const wrap = item.classList.contains('ant-space-item') ? item.cloneNode(false) : document.createElement('span');
+      const btn = exportBtn.cloneNode(true);
+      btn.classList.remove('excel');
+      btn.classList.add('drv-appt-view');
+      btn.type = 'button';
+      const label = btn.querySelector('span') || btn;
+      label.textContent = '檢視';
+      btn.title = '不下載檔案，直接在視窗裡看預約表';
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        captureUntil = Date.now() + 30000;
+        exportBtn.click();
+      };
+      wrap.appendChild(btn);
+      if (!item.classList.contains('ant-space-item')) wrap.style.marginRight = '8px';
+      item.parentElement.insertBefore(wrap, item);
+    }
+
     function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
     // 對話框是動態出現的，用 MutationObserver 監看並在出現時注入按鈕
     function watchDialog() {
-      const obs = new MutationObserver(() => injectGenerateButton());
-      const start = () => { obs.observe(document.body, { childList: true, subtree: true }); injectGenerateButton(); };
+      const obs = new MutationObserver(() => { injectGenerateButton(); injectApptViewButton(); });
+      const start = () => { obs.observe(document.body, { childList: true, subtree: true }); injectGenerateButton(); injectApptViewButton(); };
       if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
     }
     watchDialog();

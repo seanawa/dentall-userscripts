@@ -104,7 +104,8 @@
       <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js" target="_blank" rel="noopener">安裝「Dentall 健保批價單 加印下次預約」</a>
       <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js" target="_blank" rel="noopener">安裝「Dentall 健保收據 附印醫療確認單」</a>
       <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-auto-login.user.js" target="_blank" rel="noopener">安裝「Dentall 自動登入」</a>
-      <p>五支都裝；每一支都會各自跳出安裝畫面，各按一次「安裝」。</p>
+      <a class="link" href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js" target="_blank" rel="noopener">安裝「Dentall 治療項目統計 線上瀏覽」（含列印預約表「檢視」）</a>
+      <p>六支都裝；每一支都會各自跳出安裝畫面，各按一次「安裝」。</p>
       <div class="note">如果點了只看到一整頁文字，沒有安裝畫面，代表步驟 1 或 2 沒完成。回去補做後再點一次。</div>
     </div>
   </div>
@@ -128,8 +129,8 @@
       <a class="link" href="https://his.dentall.io/htdc/" target="_blank" rel="noopener">開啟 Dentall HIS</a>
       <p>登入後，在 Dentall 頁面點工具列的 Tampermonkey 圖示，應該看到：</p>
       <ol class="sub-steps">
-        <li>圖示右下角有數字 <b>5</b>（等於已安裝的腳本數）。</li>
-        <li>清單裡有「Dentall 就診列表 記住排序」「Dentall 就診列表 新掛號提醒」「Dentall 健保批價單 加印下次預約」「Dentall 健保收據 附印醫療確認單」「Dentall 自動登入」，開關都是綠色。每一支只能出現一次，重複的要刪掉。</li>
+        <li>圖示右下角有數字 <b>6</b>（等於已安裝的腳本數）。</li>
+        <li>清單裡有「Dentall 就診列表 記住排序」「Dentall 就診列表 新掛號提醒」「Dentall 健保批價單 加印下次預約」「Dentall 健保收據 附印醫療確認單」「Dentall 自動登入」「Dentall 治療項目統計 線上瀏覽」，開關都是綠色。每一支只能出現一次，重複的要刪掉。</li>
         <li>彈窗最上方<b>沒有</b>藍色橫幅寫「請啟用『允許使用者腳本』」。有的話回步驟 2。</li>
       </ol>
     </div>
@@ -189,6 +190,7 @@
       <tr><td>安裝：健保批價單 加印下次預約</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js</a></td></tr>
       <tr><td>安裝：健保收據 附印醫療確認單</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-nhi-receipt-confirm-form.user.js</a></td></tr>
       <tr><td>安裝：自動登入</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-auto-login.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-auto-login.user.js</a></td></tr>
+      <tr><td>安裝：治療項目統計 線上瀏覽／預約表檢視</td><td><a href="https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js" target="_blank" rel="noopener">raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js</a></td></tr>
       <tr><td>Chrome 政策檔（分頁不卸載）</td><td><a href="https://github.com/seanawa/dentall-userscripts/blob/main/windows/chrome-policy-dentall.reg" target="_blank" rel="noopener">windows/chrome-policy-dentall.reg</a>；移除用：<a href="https://github.com/seanawa/dentall-userscripts/blob/main/windows/chrome-policy-dentall-remove.reg" target="_blank" rel="noopener">chrome-policy-dentall-remove.reg</a></td></tr>
       <tr><td>Dentall HIS</td><td><a href="https://his.dentall.io/htdc/" target="_blank" rel="noopener">his.dentall.io/htdc</a></td></tr>
       <tr><td>程式碼與說明（GitHub）</td><td><a href="https://github.com/seanawa/dentall-userscripts" target="_blank" rel="noopener">github.com/seanawa/dentall-userscripts</a></td></tr>
@@ -199,7 +201,7 @@
   <div class="card">
     <table>
       <tr><td>點安裝連結只看到文字</td><td>Tampermonkey 沒裝，或步驟 2 的開關沒開。</td></tr>
-      <tr><td>Tampermonkey 圖示沒有數字 5</td><td>不在 Dentall 頁面、腳本開關被關掉、或步驟 2 沒開。</td></tr>
+      <tr><td>Tampermonkey 圖示沒有數字 6</td><td>不在 Dentall 頁面、腳本開關被關掉、或步驟 2 沒開。</td></tr>
       <tr><td>有藍色橫幅「請啟用允許使用者腳本」</td><td>步驟 2 沒開。開完要重新整理 Dentall 頁面。</td></tr>
       <tr><td>腳本以後怎麼更新</td><td>不用動。Tampermonkey 每天會自動檢查 GitHub 上的新版。</td></tr>
     </table>

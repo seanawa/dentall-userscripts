@@ -4,7 +4,7 @@
 
 | 腳本 | 說明 | 安裝 |
 |---|---|---|
-| `dentall-treatment-report-viewer.user.js` | 「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel | — |
+| `dentall-treatment-report-viewer.user.js` | 「分析報表 → 治療項目統計」直接在網頁上顯示，不必下載 Excel；「列印預約表」多一顆「檢視」按鈕，預約表直接在視窗裡看 || [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-treatment-report-viewer.user.js) |
 | `dentall-registration-sort-memory.user.js` | 「就診列表」記住上次點選的排序欄位與方向，回到畫面自動套用 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-sort-memory.user.js) |
 | `dentall-registration-new-patient-alert.user.js` | 「就診列表」出現新掛號病患時，畫面下方跳出醒目提醒方塊、語音播報「○○醫師，○點○分預約病患抵達」並把該列標黃，點哪一位就關掉那一位；就診列表分頁在背景時另外送 Chrome 桌面通知 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-registration-new-patient-alert.user.js) |
 | `dentall-receipt-next-appt.user.js` | 列印「健保批價單」時，在收據底部置中加印病患未來最多兩筆預約（民國日期＋星期＋時間）；沒有未來預約則收據維持原樣 | [安裝](https://raw.githubusercontent.com/seanawa/dentall-userscripts/main/dentall-receipt-next-appt.user.js) |
@@ -56,6 +56,13 @@
 | 統計（醫師 × 項目） | 每位醫師各處置代碼的次數與合計，依合計由多到少排，底部有總計列 |
 
 右上角保留「下載 Excel」按鈕，需要檔案時照舊可下載。按 Esc、點「關閉」或點視窗外即可關閉。
+
+### 列印預約表：檢視
+
+預約排程 → 工具列的列印圖示 →「列印預約表」對話框，「匯出Excel」左邊多一顆 **「檢視」**。
+選好日期與醫師後按「檢視」，不下載檔案，直接在視窗裡看預約表：「全院所醫生」和每位醫師各一個分頁，可搜尋、篩選欄位、點標題排序。需要檔案時按右上角「下載 Excel」。
+
+原本的「匯出Excel」照舊下載。Dentall 的預約表是瀏覽器自己產生 xlsx 再觸發下載，腳本只在按了「檢視」後 30 秒內攔截那一次下載，改成顯示。
 
 ### 原理
 
