@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dentall 就診列表 新掛號提醒
 // @namespace    htdayreportviewer
-// @version      1.9.0
+// @version      1.9.1
 // @description  his.dentall.io 的「就診列表」出現新掛號病患時，畫面中間下方跳出醒目的提醒方塊，並語音播報「○○醫師，○點○分預約病患抵達」（列出序位、姓名、醫師、時間），該列標成黃色；點哪一位就只關掉那一位；掛號超過 5 分鐘且超過預約時間 5 分鐘的病患自動關掉。就診列表分頁在背景（正在看別的分頁或視窗）時，另外送出 Chrome 桌面通知；並讓 Dentall 在分頁背景時仍持續更新列表，語音與通知才會在背景生效。
 // @match        https://his.dentall.io/*
 // @homepageURL  https://github.com/seanawa/dentall-userscripts
@@ -20,7 +20,7 @@
  *   3. 第一次看到某一天的列表時只默默記下來，不提醒（避免一開畫面就跳一整排）。
  *      一次冒出超過 MAX_BURST 列也視為「整批載入」而不提醒（例如切換篩選）。
  *   4. 提醒方塊固定在畫面中間下方，先一聲短「叮」再語音播報「○○醫師，○點○分預約病患抵達」（左下角「🔔 掛號提醒聲音」可關閉、選聲音、調語速音量，設定存在這台電腦）；點某一位只關掉那一位，右上角 ✕ 全部關掉；期間再有新病患會累加在同一個方塊裡。
- *      掛號時間和預約時間都已過 5 分鐘的病患自動從方塊移除（臨時指定沒有預約時間，只看掛號時間），每 30 秒檢查一次。
+ *      掛號時間和預約時間都已過 5 分鐘的病患自動從方塊移除（臨時指定沒有預約時間，不自動移除），每 30 秒檢查一次。
  *   5. 就診列表這個分頁不在前景（使用者正在看約診排程等其他分頁或視窗）時，提醒方塊看不到，所以另外送 Chrome 桌面通知；
  *      分頁在前景時只有方塊和聲音，不送桌面通知。第一次在就診列表點擊頁面時會詢問一次通知權限。
  *      注意：只在「就診列表固定開在一個分頁、其他操作在別的分頁」的用法下有效；在同一個分頁裡切到別的頁面，腳本就看不到列表、什麼都不會送。
@@ -180,7 +180,7 @@
     updateCount(box);
   }
 
-  // 掛號超過 5 分鐘、且超過預約時間 5 分鐘（臨時指定只看掛號時間）→ 自動關掉那一位
+  // 掛號超過 5 分鐘、且超過預約時間 5 分鐘 → 自動關掉那一位；臨時指定（沒有預約時間）不自動關
   const AUTO_CLOSE_MIN = 5;
   function minutesOf(hhmm) {
     const m = hhmm && hhmm.match(/^(\d{1,2}):(\d{2})$/);
@@ -195,7 +195,7 @@
       const reg = minutesOf(li.dataset.reg);
       if (reg == null || now < reg + AUTO_CLOSE_MIN) continue;
       const appt = minutesOf(li.dataset.appt);
-      if (appt != null && now < appt + AUTO_CLOSE_MIN) continue;
+      if (appt == null || now < appt + AUTO_CLOSE_MIN) continue;
       console.log(TAG, '超過 5 分鐘，自動關閉', li.dataset.key);
       dismissOne(li);
     }
